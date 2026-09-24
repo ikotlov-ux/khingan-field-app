@@ -7,7 +7,7 @@
 <title>Habitat 32</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="vendor/ol.css">
 <script src="vendor/ol.js"></script>
 <script src="vendor/jszip.min.js"></script>
@@ -15,7 +15,8 @@
 :root{--bg:#0d1710;--card:#17251a;--line:#2a3c2e;--green:#2e7d32;--green2:#43a047;--text:#edf5ee;--muted:#a2b5a6;--red:#b3261e;--blue:#1976d2}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;padding:12px 12px 92px;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Roboto,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
-h1{font-size:18px;margin:3px 0 10px}
+h1{font-size:18px;margin:3px 0 10px;display:flex;align-items:center;gap:9px}h1 img{width:30px;height:30px;border-radius:6px}
+.footer{color:var(--muted);font-size:11px;line-height:1.4;text-align:center;padding:4px 6px 0}.footer img{width:34px;height:34px;border-radius:6px;vertical-align:middle;margin-right:6px}.footer a{color:#a2b5a6}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
 .mapwrap{position:relative}
 #map{height:46vh;min-height:300px;max-height:460px;border-radius:11px;overflow:hidden;background:#1a2a1e}
@@ -71,7 +72,7 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
  </div>
 </div>
 
-<h1>🌿 Habitat 32</h1>
+<h1><img src="icon-192.png" alt="IEE RAS">Habitat 32</h1>
 <div class="card" style="padding:7px">
  <div class="mapwrap">
   <div id="map"></div>
@@ -105,6 +106,12 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
 <div class="card">
  <div class="row"><span id="pointCount" class="pill">Today's points · 今日点数: 0</span><button id="clearToday" class="btn red">Clear today<span class="zh">清除今日</span></button></div>
  <p class="tiny">Points and track vertices are saved to this phone immediately. The map shows only today's data for the selected observer. Keep the app open while recording a track.<br>点和轨迹会立即保存到本手机。地图仅显示所选观察者今天的数据。记录轨迹时请保持应用打开。</p>
+</div>
+
+<div class="footer">
+ <img src="icon-192.png" alt="ИПЭЭ РАН">© 2026 Ivan P. Kotlov, A.N. Severtsov Institute of Ecology and Evolution, Russian Academy of Sciences (IEE RAS). All rights reserved.<br>
+ © 2026 伊万·科特洛夫（Ivan P. Kotlov），俄罗斯科学院谢韦尔佐夫生态与进化问题研究所。保留所有权利。<br>
+ © 2026 И. П. Котлов, ИПЭЭ РАН. Правообладатель. · <a href="https://github.com/ikotlov-ux/khingan-field-app">Source</a>
 </div>
 
 <div class="bar"><button id="download" class="btn">⬇ Export ZIP<span class="zh">导出 ZIP</span></button><button id="share" class="btn primary" style="margin:0;padding:11px">↗ Share<span class="zh">分享</span></button></div>

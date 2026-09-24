@@ -1,7 +1,7 @@
 {
   "name": "Habitat 32",
   "short_name": "Habitat 32",
-  "description": "Record classified GPS points and a daily track; export CSV, GPX and ZIP.",
+  "description": "Habitat 32 — record classified GPS points and a daily track; export CSV, GPX and ZIP. © Ivan Kotlov, IEE RAS.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -10,7 +10,23 @@
   "theme_color": "#1b5e20",
   "lang": "en",
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ]
 }

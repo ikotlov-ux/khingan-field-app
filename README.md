@@ -57,12 +57,12 @@ The user interface and libraries are cached after the first successful HTTPS loa
 - `classes.js` — 23 habitat classes (code, id, EN, RU, ZH) from the workbook `classes` sheet
 - `vendor/` — local OpenLayers 10.6.1 and JSZip 3.10.1
 - `sw.js` — offline app-shell cache
-- `manifest.webmanifest`, `icon.svg` — installable PWA metadata
+- `manifest.webmanifest`, `icon.svg`, `icon-*.png` — installable PWA metadata with the IEE RAS logo
 
 ## GitHub Pages
 
 Settings → Pages → Deploy from a branch → `main` / root. Geolocation, file sharing, service workers and OPFS require a secure HTTPS context; GitHub Pages provides HTTPS.
 
-## License
+## Copyright and license
 
-MIT.
+© 2026 Ivan P. Kotlov, A.N. Severtsov Institute of Ecology and Evolution, Russian Academy of Sciences (IEE RAS). Logo: IEE RAS (sev-in.ru). Code is released under the MIT license; the IEE RAS logo is not covered by the MIT license.
