@@ -1,6 +1,6 @@
-/* Field Points — Bolshoy Khingan
+/* Habitat 32 — field points for Bolshoy Khingan
  * OpenLayers map, geolocation, IndexedDB + OPFS storage, CSV/GPX/ZIP export and Web Share.
- * Static, no build step. Requires a secure (HTTPS) context for geolocation, OPFS and sharing.
+ * Bilingual UI (English / 中文). Static, no build step. Requires a secure (HTTPS) context for geolocation, OPFS and sharing.
  */
 (function () {
   'use strict';
@@ -168,16 +168,41 @@
     });
   };
 
+  const osmLayer = new ol.layer.Tile({ source: new ol.source.OSM() });
+  const satLayer = new ol.layer.Tile({
+    visible: false,
+    source: new ol.source.XYZ({
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attributions: 'Imagery © Esri, Maxar, Earthstar Geographics',
+      maxZoom: 19, crossOrigin: 'anonymous'
+    })
+  });
+  let satOn = localStorage.getItem('fp_basemap') === 'sat';
+  function applyBasemap() {
+    osmLayer.setVisible(!satOn); satLayer.setVisible(satOn);
+    const b = $('baseToggle');
+    b.innerHTML = satOn ? 'Map<br>地图' : 'Sat<br>卫星';
+    b.classList.toggle('active', satOn);
+  }
+
   const map = new ol.Map({
     target: 'map',
     layers: [
-      new ol.layer.Tile({ source: new ol.source.OSM() }),
+      osmLayer, satLayer,
       new ol.layer.Vector({ source: trackSource, style: trackStyle }),
       new ol.layer.Vector({ source: posSource, style: posStyle }),
       new ol.layer.Vector({ source: pointSource, style: pointStyle })
     ],
     view: new ol.View({ center: ol.proj.fromLonLat([124.5, 52.0]), zoom: 8 }),
-    controls: ol.control.defaults.defaults({ rotate: false })
+    controls: ol.control.defaults.defaults({ rotate: false, zoom: false })
+  });
+  applyBasemap();
+  $('baseToggle').addEventListener('click', () => { satOn = !satOn; localStorage.setItem('fp_basemap', satOn ? 'sat' : 'osm'); applyBasemap(); });
+  $('zoomIn').addEventListener('click', () => map.getView().animate({ zoom: map.getView().getZoom() + 1, duration: 200 }));
+  $('zoomOut').addEventListener('click', () => map.getView().animate({ zoom: map.getView().getZoom() - 1, duration: 200 }));
+  $('centerMe').addEventListener('click', () => {
+    if (!lastFix) { setStatus('No GPS position yet. · 尚未获取 GPS 位置。', true); return; }
+    map.getView().animate({ center: ol.proj.fromLonLat([lastFix.coords.longitude, lastFix.coords.latitude]), zoom: Math.max(map.getView().getZoom(), 16), duration: 300 });
   });
 
   const popupEl = $('popup');
@@ -200,7 +225,7 @@
       f.set('point', p);
       pointSource.addFeature(f);
     }
-    $('pointCount').textContent = `Today's points: ${points.length}`;
+    $('pointCount').textContent = `Today's points · 今日点数: ${points.length}`;
   }
   function redrawTrack() {
     trackSource.clear();
@@ -208,7 +233,7 @@
       const coords = track.map((v) => ol.proj.fromLonLat([v.longitude, v.latitude]));
       trackSource.addFeature(new ol.Feature(new ol.geom.LineString(coords)));
     }
-    $('trackStats').textContent = `Track: ${track.length} vertices`;
+    $('trackStats').textContent = `Track · 轨迹: ${track.length}`;
   }
   function drawPosition(pos) {
     posSource.clear();
@@ -227,11 +252,11 @@
   function fileBase() { return `${safeName(observer)}-${fileDate(new Date(day + 'T12:00:00'))}`; }
 
   function buildCsv() {
-    const header = ['observer', 'date_local', 'time_local', 'datetime_utc', 'class_code', 'class_id', 'class_en', 'description', 'latitude', 'longitude', 'altitude_m', 'accuracy_m'];
+    const header = ['observer', 'date_local', 'time_local', 'datetime_utc', 'class_code', 'class_id', 'class_en', 'class_zh', 'description', 'latitude', 'longitude', 'altitude_m', 'accuracy_m'];
     const lines = [header.join(',')];
     for (const p of points) {
       lines.push([
-        p.observer, p.date_local, p.time_local, p.datetime_utc, p.class_code, p.class_id, p.class_en, p.description,
+        p.observer, p.date_local, p.time_local, p.datetime_utc, p.class_code, p.class_id, p.class_en, p.class_zh || '', p.description,
         p.latitude.toFixed(7), p.longitude.toFixed(7),
         p.altitude_m == null ? '' : p.altitude_m.toFixed(1),
         p.accuracy_m == null ? '' : p.accuracy_m.toFixed(1)
@@ -242,7 +267,7 @@
 
   function buildGpx() {
     const name = `${safeName(observer)} ${day}`;
-    let s = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Field Points — Bolshoy Khingan" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${xmlEsc(name)}</name><time>${new Date().toISOString()}</time></metadata>\n`;
+    let s = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Habitat 32" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${xmlEsc(name)}</name><time>${new Date().toISOString()}</time></metadata>\n`;
     for (const p of points) {
       s += `<wpt lat="${p.latitude.toFixed(7)}" lon="${p.longitude.toFixed(7)}">`;
       if (p.altitude_m != null) s += `<ele>${p.altitude_m.toFixed(1)}</ele>`;
@@ -309,7 +334,7 @@
     const accTxt = accuracy != null ? `±${Math.round(accuracy)} m` : '';
     $('gpsState').textContent = `GPS: ${accTxt}`;
     $('gpsState').style.color = accuracy <= 10 ? '#8be28f' : accuracy <= 30 ? '#ffd54f' : '#ff8a80';
-    setStatus(`Position acquired ${accTxt}`);
+    setStatus(`Position acquired · 已定位 ${accTxt}`);
     $('record').disabled = false;
     drawPosition(pos);
     if (!firstFixCentered) {
@@ -319,14 +344,14 @@
     if (tracking) maybeAddVertex(pos);
   }
   function onGeoError(err) {
-    const msgs = { 1: 'Location permission denied. Allow location access for this site.', 2: 'Position unavailable.', 3: 'GPS timeout — waiting for a better signal…' };
+    const msgs = { 1: 'Location permission denied. Allow location access for this site. · 定位权限被拒绝，请允许此网站访问位置。', 2: 'Position unavailable. · 无法获取位置。', 3: 'GPS timeout — waiting for a better signal… · GPS 超时，等待更好的信号…' };
     setStatus(msgs[err.code] || err.message, err.code !== 3);
-    $('gpsState').textContent = 'GPS: error';
+    $('gpsState').textContent = 'GPS: error · 错误';
     $('gpsState').style.color = '#ff8a80';
   }
   function startWatch() {
-    if (!('geolocation' in navigator)) { setStatus('Geolocation is not supported by this browser.', true); return; }
-    if (!window.isSecureContext) { setStatus('Geolocation requires HTTPS.', true); }
+    if (!('geolocation' in navigator)) { setStatus('Geolocation is not supported by this browser. · 此浏览器不支持定位。', true); return; }
+    if (!window.isSecureContext) { setStatus('Geolocation requires HTTPS. · 定位需要 HTTPS。', true); }
     if (watchId != null) navigator.geolocation.clearWatch(watchId);
     watchId = navigator.geolocation.watchPosition(onFix, onGeoError, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
   }
@@ -369,7 +394,7 @@
 
   function setTracking(on) {
     tracking = on;
-    $('trackToggle').textContent = on ? '⏸ Stop track' : '▶ Start track';
+    $('trackToggle').innerHTML = on ? '⏸ Stop track<span class="zh">停止轨迹</span>' : '▶ Start track<span class="zh">开始轨迹</span>';
     $('trackToggle').classList.toggle('blue', on);
     if (on) { requestWakeLock(); if (lastFix) maybeAddVertex(lastFix); }
     else if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
@@ -381,7 +406,7 @@
     points = await dbGetDay('points', observer, day);
     track = await dbGetDay('track', observer, day);
     $('dateLabel').textContent = day;
-    $('observerLabel').textContent = `Observer: ${observer}`;
+    $('observerLabel').textContent = `Observer · 观察者: ${observer}`;
     redrawPoints();
     redrawTrack();
     mirrorFiles();
@@ -430,7 +455,7 @@
     for (const c of classes) {
       const o = document.createElement('option');
       o.value = String(c.id);
-      o.textContent = `${c.code} — ${c.en}`;
+      o.textContent = `${c.code} — ${c.en} · ${c.zh}`;
       sel.appendChild(o);
     }
     const last = localStorage.getItem('fp_last_class');
@@ -441,14 +466,14 @@
   // ---------- UI: record point ----------
   $('record').disabled = true;
   $('record').addEventListener('click', async () => {
-    if (!lastFix) { setStatus('No GPS position yet.', true); return; }
+    if (!lastFix) { setStatus('No GPS position yet. · 尚未获取 GPS 位置。', true); return; }
     const c = lastFix.coords;
     const cls = classById.get($('category').value);
     const now = new Date();
     const p = {
       observer, date_local: todayKey(now), time_local: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
       datetime_utc: now.toISOString(),
-      class_code: cls ? cls.code : '', class_id: cls ? cls.id : '', class_en: cls ? cls.en : '',
+      class_code: cls ? cls.code : '', class_id: cls ? cls.id : '', class_en: cls ? cls.en : '', class_zh: cls ? cls.zh : '',
       description: $('note').value.trim(),
       latitude: c.latitude, longitude: c.longitude,
       altitude_m: c.altitude == null ? null : c.altitude,
@@ -461,12 +486,12 @@
     await mirrorFiles();
     vibrate(60);
     $('note').value = '';
-    setStatus(`Saved point #${p.id} (${p.class_code}) at ${p.time_local}, ±${Math.round(p.accuracy_m || 0)} m`);
+    setStatus(`Saved point · 已保存点 #${p.id} (${p.class_code}) ${p.time_local}, ±${Math.round(p.accuracy_m || 0)} m`);
   });
 
   $('clearToday').addEventListener('click', async () => {
     if (!observer) return;
-    if (!confirm(`Delete all of today's points and track for ${observer}? Export first if needed.`)) return;
+    if (!confirm(`Delete all of today's points and track for ${observer}? Export first if needed.\n删除 ${observer} 今天的所有点和轨迹？如需请先导出。`)) return;
     await dbDeleteDay('points', observer, day);
     await dbDeleteDay('track', observer, day);
     await opfsRemove(`${fileBase()}.csv`);
@@ -474,7 +499,7 @@
     await opfsRemove(`${fileBase()}-track.csv`);
     points = []; track = [];
     redrawPoints(); redrawTrack();
-    setStatus("Today's data cleared.");
+    setStatus("Today's data cleared. · 今日数据已清除。");
   });
 
   $('trackToggle').addEventListener('click', () => setTracking(!tracking));
@@ -484,35 +509,39 @@
     if (!observer) return;
     const blob = await buildZipBlob();
     downloadBlob(blob, `${fileBase()}.zip`);
-    setStatus(`Downloaded ${fileBase()}.zip`);
+    setStatus(`Downloaded · 已下载 ${fileBase()}.zip`);
   });
 
   // Web Share on Android Chrome only accepts "safe" file types (e.g. .csv, .txt); .zip and .gpx are
-  // rejected with NotAllowedError "Permission denied". So the share sheet gets two CSV files, and the
-  // ZIP with GPX stays in "Export ZIP". navigator.share() must run synchronously inside the click
-  // handler (no awaits before it) to keep the user-activation window.
-  $('share').addEventListener('click', () => {
-    if (!observer) return;
+  // rejected with NotAllowedError "Permission denied". WeChat (and many messengers) only appear in the
+  // share sheet for a SINGLE file, so the user picks one CSV at a time. navigator.share() must run
+  // synchronously inside the click handler (no awaits before it) to keep the user-activation window.
+  function shareOne(kind) {
     const base = fileBase();
-    const csvFile = new File([buildCsv()], `${base}.csv`, { type: 'text/csv' });
-    const trackFile = new File([buildTrackCsv()], `${base}-track.csv`, { type: 'text/csv' });
-    const files = track.length ? [csvFile, trackFile] : [csvFile];
+    const file = kind === 'track'
+      ? new File([buildTrackCsv()], `${base}-track.csv`, { type: 'text/csv' })
+      : new File([buildCsv()], `${base}.csv`, { type: 'text/csv' });
+    $('shareModal').classList.add('hidden');
     const fallback = async (why) => {
       const blob = await buildZipBlob();
       downloadBlob(blob, `${base}.zip`);
-      setStatus(`${why} ZIP downloaded instead — attach it manually.`);
+      setStatus(`${why} ZIP downloaded instead — attach it manually. · 已改为下载 ZIP，请手动附加。`);
     };
-    if (!(navigator.share && navigator.canShare && navigator.canShare({ files }))) {
-      fallback('File sharing is not supported in this browser.');
+    if (!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }))) {
+      fallback('File sharing is not supported in this browser. · 此浏览器不支持文件分享。');
       return;
     }
-    navigator.share({ files, title: base, text: `Field points and track: ${base}` })
-      .then(() => setStatus(`Shared ${files.length} CSV file(s): ${base}`))
+    navigator.share({ files: [file], title: file.name })
+      .then(() => setStatus(`Shared · 已分享: ${file.name}`))
       .catch((e) => {
-        if (e && e.name === 'AbortError') { setStatus('Share cancelled.'); return; }
-        fallback(`Share failed (${e && e.message ? e.message : e}).`);
+        if (e && e.name === 'AbortError') { setStatus('Share cancelled. · 已取消分享。'); return; }
+        fallback(`Share failed · 分享失败 (${e && e.message ? e.message : e}).`);
       });
-  });
+  }
+  $('share').addEventListener('click', () => { if (observer) $('shareModal').classList.remove('hidden'); });
+  $('sharePoints').addEventListener('click', () => shareOne('points'));
+  $('shareTrack').addEventListener('click', () => shareOne('track'));
+  $('shareCancel').addEventListener('click', () => $('shareModal').classList.add('hidden'));
 
   // ---------- service worker ----------
   if ('serviceWorker' in navigator && window.isSecureContext) {

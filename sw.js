@@ -1,5 +1,5 @@
-/* Offline app-shell cache for Field Points — Bolshoy Khingan. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v2';
+/* Offline app-shell cache for Habitat 32. Bump CACHE on every release. */
+const CACHE = 'fp-shell-v3';
 const SHELL = [
   './', './index.html', './app.js', './classes.js', './manifest.webmanifest', './icon.svg',
   './vendor/ol.js', './vendor/ol.css', './vendor/jszip.min.js'
@@ -23,7 +23,7 @@ self.addEventListener('fetch', (e) => {
   } else {
     // Map tiles: network first, fall back to whatever is cached.
     e.respondWith(fetch(req).then((res) => {
-      if (res.ok && /tile\.openstreetmap\.org/.test(url.host)) caches.open('fp-tiles').then((c) => c.put(req, res.clone()));
+      if (res.ok && /tile\.openstreetmap\.org|arcgisonline\.com/.test(url.host)) caches.open('fp-tiles').then((c) => c.put(req, res.clone()));
       return res;
     }).catch(() => caches.match(req)));
   }

@@ -1,6 +1,6 @@
 {
-  "name": "Field Points — Bolshoy Khingan",
-  "short_name": "Field Points",
+  "name": "Habitat 32",
+  "short_name": "Habitat 32",
   "description": "Record classified GPS points and a daily track; export CSV, GPX and ZIP.",
   "start_url": "./index.html",
   "scope": "./",
