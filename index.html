@@ -16,7 +16,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;padding:12px 12px 92px;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Roboto,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
 .hdr{display:flex;align-items:center;gap:8px;margin:2px 0 8px}.hdr img{width:46px;height:46px;border-radius:8px;flex:none;object-fit:contain}.hdr .labph{width:46px;height:46px;flex:none}.hdr .lab{flex:1;text-align:center;font-size:13px;font-weight:650;line-height:1.25}.hdr .lab small{display:block;font-size:10px;font-weight:500;color:var(--muted);margin-top:2px}h1{font-size:18px;margin:0 0 10px;text-align:center}
-.footer{color:var(--muted);font-size:11px;line-height:1.4;text-align:center;padding:4px 6px 0}.footer img{width:34px;height:34px;border-radius:6px;vertical-align:middle;margin-right:6px}.footer a{color:#a2b5a6}
+.footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;line-height:1.4;text-align:left;padding:4px 6px 0}.footer img{width:40px;height:40px;border-radius:6px;flex:none}.footer div{flex:1}.footer a{color:#a2b5a6}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
 .mapwrap{position:relative}
 #map{height:46vh;min-height:300px;max-height:460px;border-radius:11px;overflow:hidden;background:#1a2a1e}
@@ -74,7 +74,7 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
 
 <div class="hdr">
  <img src="icon-192.png" alt="ИПЭЭ РАН">
- <div class="lab">Лаборатория биогеоценологии им. В.Н. Сукачева<small>V.N. Sukachev Laboratory of Biogeocenology · 苏卡切夫生物地理群落学实验室</small></div>
+ <div class="lab">Лаборатория биогеоценологии им.&nbsp;В.Н.&nbsp;Сукачева<small>V.N. Sukachev Laboratory of Biogeocenology · 苏卡切夫生物地理群落学实验室</small></div>
  <img id="labLogo" class="labph" src="lab-logo.png" alt="Лаборатория биогеоценологии" onerror="this.removeAttribute('src');this.style.visibility='hidden'">
 </div>
 <h1>Habitat 32</h1>
@@ -114,9 +114,9 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
 </div>
 
 <div class="footer">
- <img src="icon-192.png" alt="ИПЭЭ РАН">© 2026 Ivan P. Kotlov, A.N. Severtsov Institute of Ecology and Evolution, Russian Academy of Sciences (IEE RAS). All rights reserved.<br>
+ <img src="icon-192.png" alt="ИПЭЭ РАН"><div>© 2026 Ivan P. Kotlov, A.N. Severtsov Institute of Ecology and Evolution, Russian Academy of Sciences (IEE RAS). All rights reserved.<br>
  © 2026 伊万·科特洛夫（Ivan P. Kotlov），俄罗斯科学院谢韦尔佐夫生态与进化问题研究所。保留所有权利。<br>
- © 2026 И. П. Котлов, ИПЭЭ РАН. Правообладатель. · <a href="https://github.com/ikotlov-ux/khingan-field-app">Source</a>
+ © 2026 И. П. Котлов, ИПЭЭ РАН. Правообладатель. · <a href="https://github.com/ikotlov-ux/khingan-field-app">Source</a></div>
 </div>
 
 <div class="bar"><button id="download" class="btn">⬇ Export ZIP<span class="zh">导出 ZIP</span></button><button id="share" class="btn primary" style="margin:0;padding:11px">↗ Share<span class="zh">分享</span></button></div>

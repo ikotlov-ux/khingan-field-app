@@ -1,5 +1,5 @@
 /* Offline app-shell cache for Habitat 32. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v5';
+const CACHE = 'fp-shell-v6';
 const SHELL = [
   './', './index.html', './app.js', './classes.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-180.png',
   './vendor/ol.js', './vendor/ol.css', './vendor/jszip.min.js'
