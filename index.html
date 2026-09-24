@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1b5e20">
+<title>Field Points — Bolshoy Khingan</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="vendor/ol.css">
+<script src="vendor/ol.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<style>
+:root{--bg:#0d1710;--card:#17251a;--line:#2a3c2e;--green:#2e7d32;--green2:#43a047;--text:#edf5ee;--muted:#a2b5a6;--red:#b3261e;--blue:#1976d2}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;padding:12px 12px 92px;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Roboto,Arial,sans-serif}h1{font-size:18px;margin:3px 0 10px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}#map{height:42vh;min-height:280px;max-height:430px;border-radius:11px;overflow:hidden}label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px}select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e;background:#0f1912;color:var(--text);font-size:16px}.gap{margin-top:10px}.row{display:flex;gap:9px}.row>*{flex:1}.btn{border:0;border-radius:12px;padding:13px;background:#2a3c2e;color:#fff;font-size:15px;font-weight:650}.btn.primary{width:100%;padding:18px;background:var(--green);font-size:19px}.btn.primary:disabled{opacity:.55}.btn.red{background:var(--red)}.btn.blue{background:var(--blue)}.stats{display:flex;justify-content:space-between;gap:7px;color:var(--muted);font-size:12px;margin:7px 2px 0}.coord{font-family:ui-monospace,monospace;color:#c5ebcb;font-size:14px}.status{font-size:13px;color:var(--muted);min-height:19px;margin:8px 0 2px}.bar{position:fixed;z-index:20;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px 12px;background:#0a110c;border-top:1px solid var(--line)}.bar .btn{flex:1}.tiny{font-size:11px;color:var(--muted);line-height:1.35}.hidden{display:none!important}.modal{position:fixed;z-index:100;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:18px}.modalbox{width:min(430px,100%);background:var(--card);border-radius:17px;padding:18px;border:1px solid var(--line)}.modalbox h2{margin:0 0 7px;font-size:20px}.modalbox p{color:var(--muted);font-size:13px}.popup{position:absolute;background:#fff;color:#17251a;padding:7px 9px;border-radius:8px;border:1px solid #777;font-size:12px;min-width:150px;transform:translate(-50%,-115%)}.pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#263b2b;color:#cce6d1;font-size:12px}.ol-attribution{font-size:9px}
+</style>
+</head>
+<body>
+<div id="observerModal" class="modal">
+ <div class="modalbox">
+  <h2>Select observer</h2>
+  <p>Choose your surname. It will be used in today's CSV, GPX and ZIP filenames.</p>
+  <select id="observerSelect">
+   <option value="">— Select —</option><option>Kotlov</option><option>Yachmennikova</option><option>Rozhnov</option><option>Zhu</option><option>Aristarkhova</option><option>Rodnikova</option><option>Ogurtsov</option><option>Sandlersky</option><option value="__other__">Other…</option>
+  </select>
+  <input id="observerOther" class="gap hidden" placeholder="Enter your surname">
+  <button id="observerConfirm" class="btn primary gap">Continue</button>
+ </div>
+</div>
+
+<h1>🌿 Field Points — Bolshoy Khingan</h1>
+<div class="card" style="padding:7px"><div id="map"></div><div id="popup" class="popup hidden"></div>
+ <div class="stats"><span id="observerLabel">Observer: —</span><span id="dateLabel">—</span></div>
+</div>
+
+<div class="card">
+ <div class="row"><button id="trackToggle" class="btn blue">⏸ Stop track</button><button id="changeObserver" class="btn">👤 Observer</button></div>
+ <div class="stats"><span id="trackStats">Track: 0 vertices</span><span id="gpsState">GPS: starting…</span></div>
+</div>
+
+<div class="card">
+ <label>Habitat class</label><select id="category"></select>
+ <label class="gap">Description (optional)</label><input id="note" placeholder="e.g. dominated by Larix gmelinii">
+</div>
+
+<div class="card">
+ <div class="row"><div><label>Latitude</label><div id="lat" class="coord">—</div></div><div><label>Longitude</label><div id="lon" class="coord">—</div></div></div>
+ <div id="status" class="status">Waiting for GPS position…</div>
+ <button id="record" class="btn primary">📍 Record point</button>
+</div>
+
+<div class="card">
+ <div class="row"><span id="pointCount" class="pill">Today's points: 0</span><button id="clearToday" class="btn red">Clear today</button></div>
+ <p class="tiny">Points and track vertices are saved to this phone immediately. The map shows only today's data for the selected observer. Keep the app open while recording a track.</p>
+</div>
+
+<div class="bar"><button id="download" class="btn">⬇ Export ZIP</button><button id="share" class="btn primary" style="margin:0;padding:13px">↗ Share</button></div>
+<script src="classes.js"></script><script src="app.js"></script>
+</body>
+</html>

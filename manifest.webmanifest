@@ -1,0 +1,16 @@
+{
+  "name": "Field Points — Bolshoy Khingan",
+  "short_name": "Field Points",
+  "description": "Record classified GPS points and a daily track; export CSV, GPX and ZIP.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1710",
+  "theme_color": "#1b5e20",
+  "lang": "en",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
