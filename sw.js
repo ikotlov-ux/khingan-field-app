@@ -1,5 +1,5 @@
 /* Offline app-shell cache for Field Points — Bolshoy Khingan. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v1';
+const CACHE = 'fp-shell-v2';
 const SHELL = [
   './', './index.html', './app.js', './classes.js', './manifest.webmanifest', './icon.svg',
   './vendor/ol.js', './vendor/ol.css', './vendor/jszip.min.js'

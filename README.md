@@ -9,7 +9,7 @@ An English-language OpenLayers PWA for recording classified field points and a d
 3. Select a habitat class and tap **Record point**.
 4. The date/time, observer, WGS 84 coordinates, altitude and GPS accuracy are recorded automatically.
 5. The track runs continuously while **Stop track** is visible. A vertex is saved when at least 5 seconds or 5 metres separate it from the previous vertex.
-6. Tap **Share** to open the phone's native share sheet and choose email or an installed messenger.
+6. Tap **Share** to open the phone's native share sheet and choose email or an installed messenger. Share sends today's **CSV files** (points and track). Use **Export ZIP** to download the archive with CSV + GPX.
 
 ## Automatic local storage
 
@@ -23,8 +23,11 @@ These internal files persist on the phone but are not directly visible in the fi
 Example names for 24 September 2026:
 
 - `Kotlov-24-09-26.csv` — classified points
-- `Kotlov-24-09-26.gpx` — today's track
-- `Kotlov-24-09-26.zip` — both files
+- `Kotlov-24-09-26-track.csv` — today's track vertices (one row per vertex)
+- `Kotlov-24-09-26.gpx` — today's track and points as GPX
+- `Kotlov-24-09-26.zip` — all three files (Export ZIP)
+
+**Why Share sends CSV, not ZIP/GPX:** Android Chrome allows the Web Share API to pass only "safe" file types (e.g. `.csv`, `.txt`, images, PDF). `.zip` and `.gpx` are rejected with `NotAllowedError: Permission denied`, so the share sheet receives the two CSV files. The track CSV imports into QGIS as points (Add Delimited Text Layer) and converts to a line with *Points to Path*; the GPX is available in the ZIP export.
 
 Do not clear site data/cache before exporting. Each device stores its own data; GitHub Pages does not provide a shared database.
 

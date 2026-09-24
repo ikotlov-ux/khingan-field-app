@@ -262,10 +262,25 @@
     return s;
   }
 
+  function buildTrackCsv() {
+    const header = ['observer', 'date_local', 'seq', 'datetime_utc', 'latitude', 'longitude', 'altitude_m', 'accuracy_m'];
+    const lines = [header.join(',')];
+    track.forEach((v, i) => {
+      lines.push([
+        v.observer, v.date_local, i + 1, v.datetime_utc,
+        v.latitude.toFixed(7), v.longitude.toFixed(7),
+        v.altitude_m == null ? '' : v.altitude_m.toFixed(1),
+        v.accuracy_m == null ? '' : v.accuracy_m.toFixed(1)
+      ].map(csvCell).join(','));
+    });
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
   async function mirrorFiles() {
     const base = fileBase();
     await opfsWrite(`${base}.csv`, buildCsv());
     await opfsWrite(`${base}.gpx`, buildGpx());
+    await opfsWrite(`${base}-track.csv`, buildTrackCsv());
   }
 
   async function buildZipBlob() {
@@ -273,6 +288,7 @@
     const zip = new JSZip();
     zip.file(`${base}.csv`, buildCsv());
     zip.file(`${base}.gpx`, buildGpx());
+    zip.file(`${base}-track.csv`, buildTrackCsv());
     return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   }
 
@@ -455,6 +471,7 @@
     await dbDeleteDay('track', observer, day);
     await opfsRemove(`${fileBase()}.csv`);
     await opfsRemove(`${fileBase()}.gpx`);
+    await opfsRemove(`${fileBase()}-track.csv`);
     points = []; track = [];
     redrawPoints(); redrawTrack();
     setStatus("Today's data cleared.");
@@ -470,30 +487,31 @@
     setStatus(`Downloaded ${fileBase()}.zip`);
   });
 
-  $('share').addEventListener('click', async () => {
+  // Web Share on Android Chrome only accepts "safe" file types (e.g. .csv, .txt); .zip and .gpx are
+  // rejected with NotAllowedError "Permission denied". So the share sheet gets two CSV files, and the
+  // ZIP with GPX stays in "Export ZIP". navigator.share() must run synchronously inside the click
+  // handler (no awaits before it) to keep the user-activation window.
+  $('share').addEventListener('click', () => {
     if (!observer) return;
     const base = fileBase();
-    try {
-      const zipBlob = await buildZipBlob();
-      const zipFile = new File([zipBlob], `${base}.zip`, { type: 'application/zip' });
-      if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
-        await navigator.share({ files: [zipFile], title: base, text: `Field points and track: ${base}` });
-        setStatus('Shared ZIP archive.');
-        return;
-      }
-      const csvFile = new File([buildCsv()], `${base}.csv`, { type: 'text/csv' });
-      const gpxFile = new File([buildGpx()], `${base}.gpx`, { type: 'application/gpx+xml' });
-      if (navigator.canShare && navigator.canShare({ files: [csvFile, gpxFile] })) {
-        await navigator.share({ files: [csvFile, gpxFile], title: base });
-        setStatus('Shared CSV and GPX files.');
-        return;
-      }
-      downloadBlob(zipBlob, `${base}.zip`);
-      setStatus('Sharing files is not supported here — ZIP downloaded instead; attach it manually.');
-    } catch (e) {
-      if (e && e.name === 'AbortError') { setStatus('Share cancelled.'); return; }
-      setStatus('Share failed: ' + (e && e.message ? e.message : e), true);
+    const csvFile = new File([buildCsv()], `${base}.csv`, { type: 'text/csv' });
+    const trackFile = new File([buildTrackCsv()], `${base}-track.csv`, { type: 'text/csv' });
+    const files = track.length ? [csvFile, trackFile] : [csvFile];
+    const fallback = async (why) => {
+      const blob = await buildZipBlob();
+      downloadBlob(blob, `${base}.zip`);
+      setStatus(`${why} ZIP downloaded instead — attach it manually.`);
+    };
+    if (!(navigator.share && navigator.canShare && navigator.canShare({ files }))) {
+      fallback('File sharing is not supported in this browser.');
+      return;
     }
+    navigator.share({ files, title: base, text: `Field points and track: ${base}` })
+      .then(() => setStatus(`Shared ${files.length} CSV file(s): ${base}`))
+      .catch((e) => {
+        if (e && e.name === 'AbortError') { setStatus('Share cancelled.'); return; }
+        fallback(`Share failed (${e && e.message ? e.message : e}).`);
+      });
   });
 
   // ---------- service worker ----------
