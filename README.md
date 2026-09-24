@@ -14,6 +14,10 @@ Live app: https://ikotlov-ux.github.io/khingan-field-app/
 6. Tap **Share · 分享**, choose **Points CSV** or **Track CSV**, then pick WeChat, Telegram, e-mail or another installed app in the phone's share sheet.
 7. **Export ZIP · 导出 ZIP** downloads an archive with both CSV files and a GPX file.
 
+## Header
+
+Institute logo (IEE RAS) on the left, laboratory name in the middle, laboratory logo on the right. To add the laboratory logo, upload a square image named **`lab-logo.png`** to the repository root — no code changes needed (the slot stays hidden until the file exists).
+
 ## Map controls
 
 Buttons in the top-right corner of the map: **+ / −** zoom, **⌖** centre on the current GPS position, **Sat / Map** toggles between OpenStreetMap and Esri World Imagery satellite basemaps. The chosen basemap is remembered.

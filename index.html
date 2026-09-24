@@ -15,7 +15,7 @@
 :root{--bg:#0d1710;--card:#17251a;--line:#2a3c2e;--green:#2e7d32;--green2:#43a047;--text:#edf5ee;--muted:#a2b5a6;--red:#b3261e;--blue:#1976d2}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;padding:12px 12px 92px;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Roboto,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
-h1{font-size:18px;margin:3px 0 10px;display:flex;align-items:center;gap:9px}h1 img{width:30px;height:30px;border-radius:6px}
+.hdr{display:flex;align-items:center;gap:8px;margin:2px 0 8px}.hdr img{width:46px;height:46px;border-radius:8px;flex:none;object-fit:contain}.hdr .labph{width:46px;height:46px;flex:none}.hdr .lab{flex:1;text-align:center;font-size:13px;font-weight:650;line-height:1.25}.hdr .lab small{display:block;font-size:10px;font-weight:500;color:var(--muted);margin-top:2px}h1{font-size:18px;margin:0 0 10px;text-align:center}
 .footer{color:var(--muted);font-size:11px;line-height:1.4;text-align:center;padding:4px 6px 0}.footer img{width:34px;height:34px;border-radius:6px;vertical-align:middle;margin-right:6px}.footer a{color:#a2b5a6}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
 .mapwrap{position:relative}
@@ -72,7 +72,12 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
  </div>
 </div>
 
-<h1><img src="icon-192.png" alt="IEE RAS">Habitat 32</h1>
+<div class="hdr">
+ <img src="icon-192.png" alt="ИПЭЭ РАН">
+ <div class="lab">Лаборатория биогеоценологии им. В.Н. Сукачева<small>V.N. Sukachev Laboratory of Biogeocenology · 苏卡切夫生物地理群落学实验室</small></div>
+ <img id="labLogo" class="labph" src="lab-logo.png" alt="Лаборатория биогеоценологии" onerror="this.removeAttribute('src');this.style.visibility='hidden'">
+</div>
+<h1>Habitat 32</h1>
 <div class="card" style="padding:7px">
  <div class="mapwrap">
   <div id="map"></div>
