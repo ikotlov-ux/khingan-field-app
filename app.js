@@ -498,6 +498,17 @@
   $('tokenGet').addEventListener('click', () => {
     window.open(`https://oauth.yandex.ru/authorize?response_type=token&client_id=${YD_CLIENT_ID}`, '_blank');
   });
+  $('qrBtn').addEventListener('click', () => {
+    const url = `${location.origin}${location.pathname}${ytoken ? '?yt=' + encodeURIComponent(ytoken) : ''}`;
+    try {
+      const q = qrcode(0, 'M'); q.addData(url); q.make();
+      $('qrBox').innerHTML = q.createSvgTag({ cellSize: 5, margin: 0, scalable: true });
+      $('qrBox').firstChild.style.width = '260px'; $('qrBox').firstChild.style.height = '260px';
+    } catch (e) { $('qrBox').textContent = String(e); }
+    $('qrLink').textContent = ytoken ? url.replace(/yt=.{6}[^&]*/, (m) => m.slice(0, 9) + '…') : url;
+    $('qrModal').classList.remove('hidden');
+  });
+  $('qrClose').addEventListener('click', () => $('qrModal').classList.add('hidden'));
   $('tokenSave').addEventListener('click', async () => {
     ytoken = $('ytoken').value.trim();
     localStorage.setItem('fp_ytoken', ytoken);
