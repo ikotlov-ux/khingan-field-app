@@ -83,7 +83,7 @@ The user interface and libraries are cached after the first successful HTTPS loa
 
 - `index.html` — bilingual mobile UI
 - `app.js` — OpenLayers map, basemaps, geolocation, IndexedDB/OPFS storage, CSV/GPX/ZIP export and sharing
-- `classes.js` — 23 habitat classes (code, id, EN, RU, ZH) from the workbook `classes` sheet
+- `classes.js` — 29 habitat classes (code, id, EN, RU, ZH) from the workbook `classes` sheet
 - `i18n.js` — Russian / Chinese UI strings; `sync-core.js` — Yandex Disk upload core shared by the page and the service worker
 - `vendor/` — local OpenLayers 10.6.1, JSZip 3.10.1, piexifjs 1.0.6 (EXIF writer)
 - `sw.js` — offline app-shell cache

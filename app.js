@@ -648,10 +648,13 @@
     const sel = $('category');
     const cur = sel.value || localStorage.getItem('fp_last_class');
     sel.innerHTML = '';
+    let grp = null, grpEl = null;
     for (const c of classes) {
+      const g = lang === 'zh' ? c.group_zh : c.group_ru;
+      if (g !== grp) { grp = g; grpEl = document.createElement('optgroup'); grpEl.label = g; sel.appendChild(grpEl); }
       const o = document.createElement('option'); o.value = String(c.id);
-      o.textContent = `${c.code} — ${lang === 'zh' ? c.zh : (c.ru || c.en)}`;
-      sel.appendChild(o);
+      o.textContent = `${c.id} — ${lang === 'zh' ? c.zh : c.ru}`;
+      grpEl.appendChild(o);
     }
     if (cur && classById.has(cur)) sel.value = cur;
   }
