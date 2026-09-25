@@ -440,7 +440,7 @@
     if (lastError) el.textContent = lastError;
     else if (n) el.textContent = navigator.onLine ? t('sync_pending', { n }) : `${t('sync_wait_net')} · ${t('sync_pending', { n })}`;
     else if (lastSync) el.textContent = t('sync_ok', { t: hm(lastSync) });
-    else el.textContent = '—';
+    else el.textContent = t('sync_idle');
   }
   function markDirty(kind) {
     if (kind === 'track') {
@@ -507,9 +507,9 @@
       $('qrBox').firstChild.style.width = '260px'; $('qrBox').firstChild.style.height = '260px';
     } catch (e) { $('qrBox').textContent = String(e); }
     $('qrLink').textContent = ytoken ? url.replace(/yt=.{6}[^&]*/, (m) => m.slice(0, 9) + '…') : url;
+    $('syncDetails').open = !ytoken;
     $('qrModal').classList.remove('hidden');
   }
-  $('qrBtn').addEventListener('click', showQr);
   $('qrTop').addEventListener('click', showQr);
   $('qrClose').addEventListener('click', () => $('qrModal').classList.add('hidden'));
   $('tokenSave').addEventListener('click', async () => {

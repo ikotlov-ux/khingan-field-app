@@ -100,6 +100,15 @@ details summary::before{content:'▸ ';color:var(--muted)}details[open] summary:
   <p data-i18n="qr_text"></p>
   <div id="qrBox" style="background:#fff;padding:12px;border-radius:12px;display:inline-block"></div>
   <p id="qrLink" class="tiny" style="word-break:break-all"></p>
+  <details id="syncDetails" style="text-align:left">
+   <summary class="tiny" data-i18n="sync_title"></summary>
+   <p class="tiny" data-i18n-html="sync_note"></p>
+   <label class="gap" data-i18n="token_lbl"></label>
+   <input id="ytoken" type="password" autocomplete="off" data-i18n-ph="token_ph">
+   <div class="row gap"><button id="tokenGet" class="btn" data-i18n="token_get"></button><button id="tokenSave" class="btn" data-i18n="save"></button></div>
+   <button id="syncNow" class="btn blue gap" style="width:100%" data-i18n="sync_now"></button>
+   <p class="tiny" data-i18n="token_help"></p>
+  </details>
   <button id="qrClose" class="btn gap" data-i18n="close"></button>
  </div>
 </div>
@@ -121,7 +130,8 @@ details summary::before{content:'▸ ';color:var(--muted)}details[open] summary:
   </div>
   <div id="popup" class="popup hidden"></div>
  </div>
- <div class="stats"><span id="observerLabel">—</span><span id="tileState"></span><span id="dateLabel">—</span></div>
+ <div class="stats"><span id="observerLabel">—</span><span id="dateLabel">—</span></div>
+ <div class="stats"><span id="syncState">—</span><span id="tileState"></span></div>
 </div>
 
 <div class="card">
@@ -154,17 +164,7 @@ details summary::before{content:'▸ ';color:var(--muted)}details[open] summary:
  <p class="tiny" data-i18n="points_note"></p>
 </div>
 
-<div class="card">
- <details id="syncDetails">
-  <summary><span data-i18n="sync_title"></span>: <span id="syncState">—</span></summary>
-  <p class="tiny" data-i18n-html="sync_note"></p>
-  <label class="gap" data-i18n="token_lbl"></label>
-  <input id="ytoken" type="password" autocomplete="off" data-i18n-ph="token_ph">
-  <div class="row gap"><button id="tokenGet" class="btn" data-i18n="token_get"></button><button id="tokenSave" class="btn" data-i18n="save"></button></div>
-  <div class="row gap"><button id="syncNow" class="btn blue" data-i18n="sync_now"></button><button id="qrBtn" class="btn" data-i18n="qr_btn"></button></div>
-  <p class="tiny" data-i18n="token_help"></p>
- </details>
-</div>
+
 
 <div id="camModal" class="cam hidden">
  <video id="camVideo" autoplay playsinline muted></video>
