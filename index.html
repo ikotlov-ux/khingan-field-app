@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="vendor/ol.css">
 <script src="vendor/ol.js"></script>
 <script src="vendor/jszip.min.js"></script>
+<script src="vendor/piexif.js"></script>
 <style>
 :root{--bg:#0d1710;--card:#17251a;--line:#2a3c2e;--green:#2e7d32;--green2:#43a047;--text:#edf5ee;--muted:#a2b5a6;--red:#b3261e;--blue:#1976d2}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -47,6 +48,22 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
 .popup{position:absolute;background:#fff;color:#17251a;padding:7px 9px;border-radius:8px;border:1px solid #777;font-size:12px;min-width:150px;transform:translate(-50%,-115%)}
 .pill{display:inline-block;padding:6px 10px;border-radius:20px;background:#263b2b;color:#cce6d1;font-size:12px;align-self:center}
 .ol-attribution{font-size:9px}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #38503e}
+.thumbs .cap{font-size:10px;color:var(--muted);text-align:center;width:64px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cam{position:fixed;inset:0;z-index:200;background:#000;display:flex;flex-direction:column}
+.cam video{flex:1;width:100%;object-fit:cover;background:#000}
+.cam .top{position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,0));color:#fff}
+.cam .rumb{font-size:34px;font-weight:800;letter-spacing:1px;text-align:center;line-height:1.1}
+.cam .rumb small{display:block;font-size:14px;font-weight:600;opacity:.9}
+.cam .hint{font-size:12px;opacity:.85;text-align:center;margin-top:4px}
+.cam .rose{position:absolute;right:12px;top:12px;width:64px;height:64px}
+.cam .bottom{position:absolute;left:0;right:0;bottom:0;padding:14px 16px 22px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.75))}
+.cam .shutter{width:76px;height:76px;border-radius:50%;background:#fff;border:6px solid rgba(255,255,255,.45);box-shadow:0 0 0 2px #000 inset}
+.cam .shutter:disabled{opacity:.4}
+.cam .sbtn{border:0;border-radius:12px;padding:10px 14px;background:rgba(255,255,255,.18);color:#fff;font-size:14px;font-weight:650}
+.cam .meta{position:absolute;left:12px;bottom:112px;color:#fff;font-size:12px;font-family:ui-monospace,monospace;text-shadow:0 0 4px #000}
+.crosshair{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid rgba(255,255,255,.8);border-radius:50%;pointer-events:none}
 </style>
 </head>
 <body>
@@ -68,6 +85,7 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
   <p>WeChat and most messengers accept one file at a time.<br>微信等应用一次只能接收一个文件。</p>
   <button id="sharePoints" class="btn primary">Points CSV<span class="zh">点位 CSV</span></button>
   <button id="shareTrack" class="btn primary gap">Track CSV<span class="zh">轨迹 CSV</span></button>
+  <button id="sharePhotos" class="btn primary gap">Photos of selected point (JPEG)<span class="zh">所选点位的照片</span></button>
   <button id="shareCancel" class="btn gap">Cancel<span class="zh">取消</span></button>
  </div>
 </div>
@@ -109,8 +127,34 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
 </div>
 
 <div class="card">
+ <label>Attach photo to point · 照片关联点位</label>
+ <select id="photoPoint"><option value="">— Record a point first · 请先记录点 —</option></select>
+ <button id="takePhoto" class="btn primary gap" disabled>📷 Photo<span class="zh">拍照</span></button>
+ <input id="photoFile" type="file" accept="image/*" capture="environment" class="hidden">
+ <div class="stats"><span id="photoCount">Today's photos · 今日照片: 0</span><span id="compassState">Compass · 罗盘: —</span></div>
+ <div id="thumbs" class="thumbs"></div>
+ <p class="tiny">Photos are named surname-dd-mm-yy-pointID-N.jpg. Coordinates and camera heading are written into EXIF and stamped on the image.<br>照片命名为 姓氏-日-月-年-点号-序号.jpg，坐标和相机方向写入 EXIF 并印在图片上。</p>
+</div>
+
+<div class="card">
  <div class="row"><span id="pointCount" class="pill">Today's points · 今日点数: 0</span><button id="clearToday" class="btn red">Clear today<span class="zh">清除今日</span></button></div>
  <p class="tiny">Points and track vertices are saved to this phone immediately. The map shows only today's data for the selected observer. Keep the app open while recording a track.<br>点和轨迹会立即保存到本手机。地图仅显示所选观察者今天的数据。记录轨迹时请保持应用打开。</p>
+</div>
+
+<div id="camModal" class="cam hidden">
+ <video id="camVideo" autoplay playsinline muted></video>
+ <div class="crosshair"></div>
+ <div class="top">
+  <div class="rumb" id="camRumb">—<small id="camRumbSub">Compass · Компас · 罗盘: waiting…</small></div>
+  <div class="hint">Point the camera at the target. Heading is recorded at capture.<br>将相机对准目标，拍摄时记录方向。</div>
+ </div>
+ <svg class="rose" id="camRose" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="rgba(0,0,0,.45)" stroke="#fff" stroke-width="2"/><g id="roseDial"><polygon points="50,8 44,50 56,50" fill="#e53935"/><polygon points="50,92 44,50 56,50" fill="#fff"/><text x="50" y="22" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">N</text></g><circle cx="50" cy="50" r="4" fill="#fff"/></svg>
+ <div class="meta" id="camMeta"></div>
+ <div class="bottom">
+  <button id="camClose" class="sbtn">✕ Close<br>关闭</button>
+  <button id="camShutter" class="shutter" title="Capture · 拍摄"></button>
+  <span style="width:70px"></span>
+ </div>
 </div>
 
 <div class="footer">

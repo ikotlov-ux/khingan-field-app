@@ -10,7 +10,7 @@
   const TRACK_MIN_SECONDS = 5;
   const TRACK_MIN_METERS = 5;
   const DB_NAME = 'field-points';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
 
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
@@ -66,6 +66,11 @@
           const t = d.createObjectStore('track', { keyPath: 'id', autoIncrement: true });
           t.createIndex('byDay', ['observer', 'date_local'], { unique: false });
         }
+        if (!d.objectStoreNames.contains('photos')) {
+          const p = d.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+          p.createIndex('byDay', ['observer', 'date_local'], { unique: false });
+          p.createIndex('byPoint', 'point_id', { unique: false });
+        }
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -84,6 +89,14 @@
       const tx = db.transaction(store, 'readonly');
       const r = tx.objectStore(store).index('byDay').getAll(IDBKeyRange.only([observer, day]));
       r.onsuccess = () => resolve(r.result.sort((a, b) => a.id - b.id));
+      r.onerror = () => reject(r.error);
+    });
+  }
+  function dbDelete(store, id) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readwrite');
+      const r = tx.objectStore(store).delete(id);
+      r.onsuccess = () => resolve();
       r.onerror = () => reject(r.error);
     });
   }
@@ -127,6 +140,7 @@
   let day = todayKey();
   let points = [];
   let track = [];
+  let photos = [];
   let tracking = false;
   let watchId = null;
   let lastFix = null;
@@ -135,6 +149,61 @@
 
   const classes = (window.HABITAT_CLASSES || []).slice();
   const classById = new Map(classes.map((c) => [String(c.id), c]));
+
+  // ---------- compass (camera heading) ----------
+  const RUMBS = [
+    { en: 'N', ru: 'С', zh: '北' }, { en: 'NE', ru: 'СВ', zh: '东北' }, { en: 'E', ru: 'В', zh: '东' }, { en: 'SE', ru: 'ЮВ', zh: '东南' },
+    { en: 'S', ru: 'Ю', zh: '南' }, { en: 'SW', ru: 'ЮЗ', zh: '西南' }, { en: 'W', ru: 'З', zh: '西' }, { en: 'NW', ru: 'СЗ', zh: '西北' }
+  ];
+  function rumbOf(h) { return RUMBS[Math.round(((h % 360) + 360) % 360 / 45) % 8]; }
+  let heading = null;          // degrees, 0..360, magnetic north, direction the rear camera points
+  let headingAt = 0;
+  let compassOn = false;
+  const D2R = Math.PI / 180;
+  // W3C "compass heading of the device's back" for a phone held upright (portrait).
+  function backHeading(alpha, beta, gamma) {
+    const x = (beta || 0) * D2R, y = (gamma || 0) * D2R, z = (alpha || 0) * D2R;
+    const cX = Math.cos(x), cY = Math.cos(y), cZ = Math.cos(z), sX = Math.sin(x), sY = Math.sin(y), sZ = Math.sin(z);
+    const Vx = -cZ * sY - sZ * sX * cY, Vy = -sZ * sY + cZ * sX * cY;
+    let h = Math.atan(Vx / Vy);
+    if (Vy < 0) h += Math.PI; else if (Vx < 0) h += 2 * Math.PI;
+    return h / D2R;
+  }
+  function onOrient(e) {
+    let h = null;
+    if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) h = e.webkitCompassHeading; // iOS
+    else if (e.alpha != null && (e.absolute || e.type === 'deviceorientationabsolute')) h = backHeading(e.alpha, e.beta, e.gamma);
+    if (h == null) return;
+    heading = ((h % 360) + 360) % 360; headingAt = Date.now();
+    updateCompassUi();
+  }
+  async function startCompass() {
+    if (compassOn) return;
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const r = await DeviceOrientationEvent.requestPermission(); // iOS 13+, needs a user gesture
+        if (r !== 'granted') { $('compassState').textContent = 'Compass · 罗盘: denied · 被拒绝'; return; }
+      }
+    } catch (_) {}
+    if ('ondeviceorientationabsolute' in window) window.addEventListener('deviceorientationabsolute', onOrient, true);
+    window.addEventListener('deviceorientation', onOrient, true);
+    compassOn = true;
+    $('compassState').textContent = 'Compass · 罗盘: on · 开';
+  }
+  function headingText(h) {
+    if (h == null) return { big: '—', sub: 'no compass · нет компаса · 无罗盘' };
+    const r = rumbOf(h);
+    return { big: `${r.en} · ${r.ru} · ${r.zh}`, sub: `${Math.round(h)}° magnetic · 磁方位` };
+  }
+  function updateCompassUi() {
+    const t = headingText(heading);
+    $('compassState').textContent = heading == null ? 'Compass · 罗盘: —' : `Compass · 罗盘: ${Math.round(heading)}° ${rumbOf(heading).en}·${rumbOf(heading).ru}`;
+    if (!$('camModal').classList.contains('hidden')) {
+      $('camRumb').firstChild.nodeValue = t.big;
+      $('camRumbSub').textContent = t.sub;
+      $('roseDial').setAttribute('transform', `rotate(${heading == null ? 0 : -heading} 50 50)`);
+    }
+  }
 
   // ---------- map ----------
   const pointSource = new ol.source.Vector();
@@ -213,7 +282,9 @@
     map.forEachFeatureAtPixel(evt.pixel, (f) => { if (f.get('point')) { hit = f; return true; } }, { hitTolerance: 8 });
     if (!hit) { popupEl.classList.add('hidden'); return; }
     const p = hit.get('point');
-    popupEl.innerHTML = `<b>#${p.id} · ${xmlEsc(p.class_code)}</b><br>${xmlEsc(p.class_en)}<br>${xmlEsc(p.time_local)}${p.description ? '<br><i>' + xmlEsc(p.description) + '</i>' : ''}`;
+    const nph = photos.filter((x) => x.point_id === p.id).length;
+    popupEl.innerHTML = `<b>#${p.id} · ${xmlEsc(p.class_code)}</b><br>${xmlEsc(p.class_en)}<br>${xmlEsc(p.time_local)}${p.description ? '<br><i>' + xmlEsc(p.description) + '</i>' : ''}${nph ? `<br>📷 ${nph}` : ''}`;
+    $('photoPoint').value = String(p.id);
     popupEl.classList.remove('hidden');
     popup.setPosition(hit.getGeometry().getCoordinates());
   });
@@ -235,6 +306,45 @@
     }
     $('trackStats').textContent = `Track · 轨迹: ${track.length}`;
   }
+  function pointLabel(p) { return `#${p.id} · ${p.class_code} · ${p.time_local}`; }
+  function refreshPhotoUi(selectId) {
+    const sel = $('photoPoint');
+    const prev = selectId != null ? String(selectId) : sel.value;
+    sel.innerHTML = '';
+    if (!points.length) {
+      sel.innerHTML = '<option value="">— Record a point first · 请先记录点 —</option>';
+    } else {
+      for (const p of points) {
+        const o = document.createElement('option');
+        o.value = String(p.id);
+        const n = photos.filter((x) => x.point_id === p.id).length;
+        o.textContent = pointLabel(p) + (n ? ` · 📷${n}` : '');
+        sel.appendChild(o);
+      }
+      sel.value = points.some((p) => String(p.id) === prev) ? prev : String(points[points.length - 1].id);
+    }
+    $('takePhoto').disabled = !points.length;
+    $('photoCount').textContent = `Today's photos · 今日照片: ${photos.length}`;
+    const th = $('thumbs');
+    th.querySelectorAll('img').forEach((im) => URL.revokeObjectURL(im.src));
+    th.innerHTML = '';
+    const pid = Number(sel.value);
+    for (const ph of photos.filter((x) => x.point_id === pid)) {
+      const box = document.createElement('div');
+      const im = document.createElement('img');
+      im.src = URL.createObjectURL(ph.blob); im.alt = ph.filename; im.title = ph.filename;
+      im.addEventListener('click', async () => {
+        if (!confirm(`Delete photo ${ph.filename}?\n删除照片 ${ph.filename}？`)) return;
+        await dbDelete('photos', ph.id);
+        photos = photos.filter((x) => x.id !== ph.id);
+        refreshPhotoUi(); mirrorFiles();
+      });
+      const cap = document.createElement('div'); cap.className = 'cap'; cap.textContent = `${ph.seq} · ${Math.round(ph.heading_deg ?? NaN) || '—'}° ${ph.rumb_en || ''}`;
+      box.appendChild(im); box.appendChild(cap); th.appendChild(box);
+    }
+  }
+  $('photoPoint').addEventListener('change', () => refreshPhotoUi());
+
   function drawPosition(pos) {
     posSource.clear();
     const c = ol.proj.fromLonLat([pos.coords.longitude, pos.coords.latitude]);
@@ -252,14 +362,31 @@
   function fileBase() { return `${safeName(observer)}-${fileDate(new Date(day + 'T12:00:00'))}`; }
 
   function buildCsv() {
-    const header = ['observer', 'date_local', 'time_local', 'datetime_utc', 'class_code', 'class_id', 'class_en', 'class_zh', 'description', 'latitude', 'longitude', 'altitude_m', 'accuracy_m'];
+    const header = ['observer', 'date_local', 'time_local', 'datetime_utc', 'class_code', 'class_id', 'class_en', 'class_zh', 'description', 'latitude', 'longitude', 'altitude_m', 'accuracy_m', 'n_photos'];
     const lines = [header.join(',')];
     for (const p of points) {
       lines.push([
         p.observer, p.date_local, p.time_local, p.datetime_utc, p.class_code, p.class_id, p.class_en, p.class_zh || '', p.description,
         p.latitude.toFixed(7), p.longitude.toFixed(7),
         p.altitude_m == null ? '' : p.altitude_m.toFixed(1),
-        p.accuracy_m == null ? '' : p.accuracy_m.toFixed(1)
+        p.accuracy_m == null ? '' : p.accuracy_m.toFixed(1),
+        photos.filter((x) => x.point_id === p.id).length
+      ].map(csvCell).join(','));
+    }
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
+  function buildPhotosCsv() {
+    const header = ['filename', 'observer', 'date_local', 'point_id', 'photo_seq', 'datetime_utc', 'latitude', 'longitude', 'altitude_m', 'accuracy_m', 'heading_deg_magnetic', 'rumb_en', 'rumb_ru', 'rumb_zh', 'class_code', 'class_en'];
+    const lines = [header.join(',')];
+    for (const ph of photos) {
+      const p = points.find((x) => x.id === ph.point_id) || {};
+      lines.push([
+        ph.filename, ph.observer, ph.date_local, ph.point_id, ph.seq, ph.datetime_utc,
+        ph.latitude == null ? '' : ph.latitude.toFixed(7), ph.longitude == null ? '' : ph.longitude.toFixed(7),
+        ph.altitude_m == null ? '' : ph.altitude_m.toFixed(1), ph.accuracy_m == null ? '' : ph.accuracy_m.toFixed(1),
+        ph.heading_deg == null ? '' : ph.heading_deg.toFixed(1), ph.rumb_en || '', ph.rumb_ru || '', ph.rumb_zh || '',
+        p.class_code || '', p.class_en || ''
       ].map(csvCell).join(','));
     }
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
@@ -306,6 +433,7 @@
     await opfsWrite(`${base}.csv`, buildCsv());
     await opfsWrite(`${base}.gpx`, buildGpx());
     await opfsWrite(`${base}-track.csv`, buildTrackCsv());
+    if (photos.length) await opfsWrite(`${base}-photos.csv`, buildPhotosCsv());
   }
 
   async function buildZipBlob() {
@@ -314,6 +442,10 @@
     zip.file(`${base}.csv`, buildCsv());
     zip.file(`${base}.gpx`, buildGpx());
     zip.file(`${base}-track.csv`, buildTrackCsv());
+    if (photos.length) {
+      zip.file(`${base}-photos.csv`, buildPhotosCsv());
+      for (const ph of photos) zip.file(`photos/${ph.filename}`, ph.blob);
+    }
     return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   }
 
@@ -405,6 +537,8 @@
     day = todayKey();
     points = await dbGetDay('points', observer, day);
     track = await dbGetDay('track', observer, day);
+    photos = await dbGetDay('photos', observer, day);
+    refreshPhotoUi();
     $('dateLabel').textContent = day;
     $('observerLabel').textContent = `Observer · 观察者: ${observer}`;
     redrawPoints();
@@ -483,6 +617,7 @@
     p.id = await dbAdd('points', p);
     points.push(p);
     redrawPoints();
+    refreshPhotoUi(p.id);
     await mirrorFiles();
     vibrate(60);
     $('note').value = '';
@@ -494,11 +629,13 @@
     if (!confirm(`Delete all of today's points and track for ${observer}? Export first if needed.\n删除 ${observer} 今天的所有点和轨迹？如需请先导出。`)) return;
     await dbDeleteDay('points', observer, day);
     await dbDeleteDay('track', observer, day);
+    await dbDeleteDay('photos', observer, day);
     await opfsRemove(`${fileBase()}.csv`);
+    await opfsRemove(`${fileBase()}-photos.csv`);
     await opfsRemove(`${fileBase()}.gpx`);
     await opfsRemove(`${fileBase()}-track.csv`);
-    points = []; track = [];
-    redrawPoints(); redrawTrack();
+    points = []; track = []; photos = [];
+    redrawPoints(); redrawTrack(); refreshPhotoUi();
     setStatus("Today's data cleared. · 今日数据已清除。");
   });
 
@@ -512,16 +649,163 @@
     setStatus(`Downloaded · 已下载 ${fileBase()}.zip`);
   });
 
+  // ---------- photos: in-app camera with compass, EXIF GPS + heading ----------
+  let camStream = null;
+  const MAX_SIDE = 1600;
+
+  function selectedPoint() { return points.find((p) => String(p.id) === $('photoPoint').value) || null; }
+
+  async function openCamera() {
+    const p = selectedPoint();
+    if (!p) { setStatus('Record a point first. · 请先记录点。', true); return; }
+    startCompass();
+    $('camModal').classList.remove('hidden');
+    $('camMeta').textContent = `${pointLabel(p)}`;
+    updateCompassUi();
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+      $('camVideo').srcObject = camStream;
+    } catch (e) {
+      // No in-app camera (permission denied / unsupported): fall back to the system camera app.
+      closeCamera();
+      $('photoFile').click();
+    }
+  }
+  function closeCamera() {
+    $('camModal').classList.add('hidden');
+    if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
+    $('camVideo').srcObject = null;
+  }
+
+  function stampAndEncode(source, sw, sh, info) {
+    const scale = Math.min(1, MAX_SIDE / Math.max(sw, sh));
+    const w = Math.round(sw * scale), h = Math.round(sh * scale);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(source, 0, 0, w, h);
+    const fs = Math.max(14, Math.round(w / 48));
+    const lines = [
+      `${info.filename}  ·  ${info.datetime_local}`,
+      `${info.latitude != null ? info.latitude.toFixed(6) + ', ' + info.longitude.toFixed(6) : 'no GPS'}${info.accuracy_m != null ? ' ±' + Math.round(info.accuracy_m) + ' m' : ''}${info.altitude_m != null ? '  h ' + Math.round(info.altitude_m) + ' m' : ''}`,
+      `${info.heading_deg != null ? 'Heading ' + Math.round(info.heading_deg) + '° ' + info.rumb_en + ' · ' + info.rumb_ru + ' · ' + info.rumb_zh + ' (magnetic)' : 'Heading: n/a'}  ·  ${info.class_code} ${info.class_en}`
+    ];
+    const pad = Math.round(fs * 0.5), bh = lines.length * (fs * 1.3) + pad * 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, h - bh, w, bh);
+    ctx.fillStyle = '#fff'; ctx.font = `${fs}px system-ui, sans-serif`; ctx.textBaseline = 'top';
+    lines.forEach((ln, i) => ctx.fillText(ln, pad, h - bh + pad + i * fs * 1.3, w - 2 * pad));
+    return cv.toDataURL('image/jpeg', 0.86);
+  }
+
+  function addExif(dataUrl, info) {
+    try {
+      const d = new Date(info.datetime_utc);
+      const exifDate = `${d.getFullYear()}:${pad(d.getMonth() + 1)}:${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      const zeroth = {}, exif = {}, gps = {};
+      zeroth[piexif.ImageIFD.Make] = 'Habitat 32';
+      zeroth[piexif.ImageIFD.Software] = 'Habitat 32 PWA';
+      zeroth[piexif.ImageIFD.Artist] = info.observer;
+      zeroth[piexif.ImageIFD.Copyright] = `(c) ${d.getFullYear()} I. P. Kotlov, IEE RAS`;
+      zeroth[piexif.ImageIFD.ImageDescription] = `Point #${info.point_id} ${info.class_code} ${info.class_en}; heading ${info.heading_deg != null ? Math.round(info.heading_deg) + ' deg ' + info.rumb_en : 'n/a'}`;
+      zeroth[piexif.ImageIFD.Orientation] = 1;
+      exif[piexif.ExifIFD.DateTimeOriginal] = exifDate;
+      exif[piexif.ExifIFD.DateTimeDigitized] = exifDate;
+      exif[piexif.ExifIFD.UserComment] = info.filename;
+      if (info.latitude != null) {
+        gps[piexif.GPSIFD.GPSVersionID] = [2, 3, 0, 0];
+        gps[piexif.GPSIFD.GPSLatitudeRef] = info.latitude >= 0 ? 'N' : 'S';
+        gps[piexif.GPSIFD.GPSLatitude] = piexif.GPSHelper.degToDmsRational(Math.abs(info.latitude));
+        gps[piexif.GPSIFD.GPSLongitudeRef] = info.longitude >= 0 ? 'E' : 'W';
+        gps[piexif.GPSIFD.GPSLongitude] = piexif.GPSHelper.degToDmsRational(Math.abs(info.longitude));
+        if (info.altitude_m != null) { gps[piexif.GPSIFD.GPSAltitudeRef] = info.altitude_m >= 0 ? 0 : 1; gps[piexif.GPSIFD.GPSAltitude] = [Math.round(Math.abs(info.altitude_m) * 100), 100]; }
+        if (info.accuracy_m != null) gps[piexif.GPSIFD.GPSHPositioningError] = [Math.round(info.accuracy_m * 100), 100];
+        gps[piexif.GPSIFD.GPSDateStamp] = `${d.getUTCFullYear()}:${pad(d.getUTCMonth() + 1)}:${pad(d.getUTCDate())}`;
+        gps[piexif.GPSIFD.GPSTimeStamp] = [[d.getUTCHours(), 1], [d.getUTCMinutes(), 1], [d.getUTCSeconds(), 1]];
+      }
+      if (info.heading_deg != null) {
+        gps[piexif.GPSIFD.GPSImgDirectionRef] = 'M';
+        gps[piexif.GPSIFD.GPSImgDirection] = [Math.round(info.heading_deg * 100), 100];
+      }
+      const exifStr = piexif.dump({ '0th': zeroth, 'Exif': exif, 'GPS': gps });
+      return piexif.insert(exifStr, dataUrl);
+    } catch (e) { return dataUrl; }
+  }
+
+  function dataUrlToBlob(u) {
+    const [meta, b64] = u.split(',');
+    const bin = atob(b64), arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: (meta.match(/data:([^;]+)/) || [])[1] || 'image/jpeg' });
+  }
+
+  async function savePhoto(source, sw, sh) {
+    const p = selectedPoint();
+    if (!p) return;
+    const now = new Date();
+    const seq = photos.filter((x) => x.point_id === p.id).length + 1;
+    const h = (heading != null && Date.now() - headingAt < 15000) ? heading : null;
+    const r = h != null ? rumbOf(h) : null;
+    const c = lastFix ? lastFix.coords : null;
+    const info = {
+      observer, date_local: todayKey(now), point_id: p.id, seq,
+      filename: `${safeName(observer)}-${fileDate(now)}-${p.id}-${seq}.jpg`,
+      datetime_utc: now.toISOString(), datetime_local: localDateTime(now),
+      latitude: c ? c.latitude : (p.latitude ?? null), longitude: c ? c.longitude : (p.longitude ?? null),
+      altitude_m: c && c.altitude != null ? c.altitude : null, accuracy_m: c && c.accuracy != null ? c.accuracy : null,
+      heading_deg: h, rumb_en: r ? r.en : '', rumb_ru: r ? r.ru : '', rumb_zh: r ? r.zh : '',
+      class_code: p.class_code, class_en: p.class_en
+    };
+    const stamped = stampAndEncode(source, sw, sh, info);
+    const withExif = addExif(stamped, info);
+    const rec = Object.assign({}, info, { blob: dataUrlToBlob(withExif) });
+    delete rec.datetime_local; delete rec.class_code; delete rec.class_en;
+    rec.id = await dbAdd('photos', rec);
+    photos.push(rec);
+    vibrate(40);
+    refreshPhotoUi(p.id);
+    mirrorFiles();
+    setStatus(`Photo saved · 已保存照片: ${info.filename}${h != null ? ` (${Math.round(h)}° ${r.en}·${r.ru})` : ''}`);
+  }
+
+  $('takePhoto').addEventListener('click', openCamera);
+  $('camClose').addEventListener('click', closeCamera);
+  $('camShutter').addEventListener('click', async () => {
+    const v = $('camVideo');
+    if (!v.videoWidth) return;
+    $('camShutter').disabled = true;
+    try { await savePhoto(v, v.videoWidth, v.videoHeight); } finally { $('camShutter').disabled = false; }
+  });
+  $('photoFile').addEventListener('change', async () => {
+    const f = $('photoFile').files[0];
+    $('photoFile').value = '';
+    if (!f) return;
+    try {
+      let bmp;
+      try { bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }); }
+      catch (_) { bmp = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(f); }); }
+      await savePhoto(bmp, bmp.width || bmp.naturalWidth, bmp.height || bmp.naturalHeight);
+    } catch (e) { setStatus('Photo failed · 照片失败: ' + e.message, true); }
+  });
+
   // Web Share on Android Chrome only accepts "safe" file types (e.g. .csv, .txt); .zip and .gpx are
   // rejected with NotAllowedError "Permission denied". WeChat (and many messengers) only appear in the
   // share sheet for a SINGLE file, so the user picks one CSV at a time. navigator.share() must run
   // synchronously inside the click handler (no awaits before it) to keep the user-activation window.
   function shareOne(kind) {
     const base = fileBase();
+    $('shareModal').classList.add('hidden');
+    if (kind === 'photos') {
+      const p = selectedPoint();
+      const files = photos.filter((x) => p && x.point_id === p.id).map((x) => new File([x.blob], x.filename, { type: 'image/jpeg' }));
+      if (!files.length) { setStatus('No photos for the selected point. · 所选点位没有照片。', true); return; }
+      if (!(navigator.share && navigator.canShare && navigator.canShare({ files }))) { setStatus('File sharing is not supported in this browser. · 此浏览器不支持文件分享。', true); return; }
+      navigator.share({ files, title: `${base} point #${p.id} photos` })
+        .then(() => setStatus(`Shared · 已分享 ${files.length} photo(s)`))
+        .catch((e) => setStatus(e && e.name === 'AbortError' ? 'Share cancelled. · 已取消分享。' : `Share failed · 分享失败 (${e.message || e}).`, e && e.name !== 'AbortError'));
+      return;
+    }
     const file = kind === 'track'
       ? new File([buildTrackCsv()], `${base}-track.csv`, { type: 'text/csv' })
       : new File([buildCsv()], `${base}.csv`, { type: 'text/csv' });
-    $('shareModal').classList.add('hidden');
     const fallback = async (why) => {
       const blob = await buildZipBlob();
       downloadBlob(blob, `${base}.zip`);
@@ -541,6 +825,7 @@
   $('share').addEventListener('click', () => { if (observer) $('shareModal').classList.remove('hidden'); });
   $('sharePoints').addEventListener('click', () => shareOne('points'));
   $('shareTrack').addEventListener('click', () => shareOne('track'));
+  $('sharePhotos').addEventListener('click', () => shareOne('photos'));
   $('shareCancel').addEventListener('click', () => $('shareModal').classList.add('hidden'));
 
   // ---------- service worker ----------
