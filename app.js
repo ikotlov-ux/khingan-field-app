@@ -334,13 +334,14 @@
     for (const u of urls) if (!(await cache.match(u))) missing.push(u);
     if (my !== prefetchRun) return;
     let done = 0;
-    const show = () => { $('tileState').textContent = missing.length ? t('tiles', { a: done, b: missing.length }) : ''; };
+    const total = missing.length;
+    const show = () => { $('tileState').textContent = total ? t('tiles', { a: done, b: total }) : ''; };
     show();
     const worker = async () => {
       while (missing.length && my === prefetchRun && navigator.onLine) {
         const u = missing.shift();
         try { const res = await fetch(u, { mode: 'cors' }); if (res.ok) await cache.put(u, res); } catch (_) {}
-        done++; if (done % 5 === 0) show();
+        done++; if (done % 5 === 0 || done === total) show();
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
