@@ -181,14 +181,13 @@
     if (compassOn) return;
     try {
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        const r = await DeviceOrientationEvent.requestPermission(); // iOS 13+, needs a user gesture
-        if (r !== 'granted') { $('compassState').textContent = 'Compass · 罗盘: denied · 被拒绝'; return; }
+        await DeviceOrientationEvent.requestPermission(); // iOS 13+, needs a user gesture; ignore the result and just listen
       }
     } catch (_) {}
     if ('ondeviceorientationabsolute' in window) window.addEventListener('deviceorientationabsolute', onOrient, true);
     window.addEventListener('deviceorientation', onOrient, true);
     compassOn = true;
-    $('compassState').textContent = 'Compass · 罗盘: on · 开';
+    $('compassState').textContent = 'Compass · 罗盘: waiting… · 等待…';
   }
   function headingText(h) {
     if (h == null) return { big: '—', sub: 'no compass · нет компаса · 无罗盘' };
@@ -783,7 +782,7 @@
       try { bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }); }
       catch (_) { bmp = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(f); }); }
       await savePhoto(bmp, bmp.width || bmp.naturalWidth, bmp.height || bmp.naturalHeight);
-    } catch (e) { setStatus('Photo failed · 照片失败: ' + e.message, true); }
+    } catch (e) { setStatus('Photo failed · 照片失败: ' + (e && e.message ? e.message : (e && e.type) || e), true); }
   });
 
   // Web Share on Android Chrome only accepts "safe" file types (e.g. .csv, .txt); .zip and .gpx are
