@@ -20,6 +20,7 @@ body{margin:0;padding:12px 12px 92px;background:var(--bg);color:var(--text);font
 .hdr{display:flex;align-items:center;gap:8px;margin:2px 0 8px}.hdr img{width:46px;height:46px;border-radius:8px;flex:none;object-fit:contain}.hdr .labph{width:46px;height:46px;flex:none}.hdr .lab{flex:1;text-align:center;font-size:13px;font-weight:650;line-height:1.25}.hdr .lab small{display:block;font-size:10px;font-weight:500;color:var(--muted);margin-top:2px}
 .titlerow{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 10px;position:relative}
 h1{font-size:18px;margin:0;text-align:center}
+.qrtop{left:0;right:auto}
 .langbtn{position:absolute;right:0;top:-2px;border:1px solid #38503e;border-radius:10px;background:#0f1912;color:#fff;font-size:13px;font-weight:700;padding:6px 10px}
 .footer{color:var(--muted);font-size:11px;line-height:1.4;text-align:center;padding:4px 6px 0}.footer a{color:#a2b5a6}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
@@ -50,6 +51,7 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
 .popup{position:absolute;background:#fff;color:#17251a;padding:7px 9px;border-radius:8px;border:1px solid #777;font-size:12px;min-width:150px;transform:translate(-50%,-115%)}
 .pill{display:inline-block;padding:6px 10px;border-radius:20px;background:#263b2b;color:#cce6d1;font-size:12px;align-self:center}
 .ol-attribution{font-size:9px}
+.ol-scale-line{background:rgba(255,255,255,.75);border-radius:4px;bottom:22px;left:8px;padding:2px 4px}.ol-scale-line-inner{border:2px solid #1b2a1f;border-top:none;color:#1b2a1f;font-size:11px;font-weight:600}
 details summary{cursor:pointer;font-size:14px;font-weight:650;list-style:none}
 details summary::-webkit-details-marker{display:none}
 details summary::before{content:'▸ ';color:var(--muted)}details[open] summary::before{content:'▾ '}
@@ -107,7 +109,7 @@ details summary::before{content:'▸ ';color:var(--muted)}details[open] summary:
  <div class="lab"><span data-i18n-html="lab_main"></span><small data-i18n="lab_sub"></small></div>
  <img id="labLogo" class="labph" src="lab-logo.png" alt="Лаборатория биогеоценологии" onerror="this.removeAttribute('src');this.style.visibility='hidden'">
 </div>
-<div class="titlerow"><h1>Habitat 32</h1><button id="langBtn" class="langbtn" data-i18n="lang_btn"></button></div>
+<div class="titlerow"><button id="qrTop" class="langbtn qrtop" data-i18n-title="qr_btn" aria-label="QR">▦ QR</button><h1>Habitat 32</h1><button id="langBtn" class="langbtn" data-i18n="lang_btn"></button></div>
 <div class="card" style="padding:7px">
  <div class="mapwrap">
   <div id="map"></div>

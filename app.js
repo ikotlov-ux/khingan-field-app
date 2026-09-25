@@ -245,7 +245,7 @@
     target: 'map',
     layers: [osmLayer, satLayer, new ol.layer.Vector({ source: trackSource, style: trackStyle }), new ol.layer.Vector({ source: posSource, style: posStyle }), new ol.layer.Vector({ source: pointSource, style: pointStyle })],
     view: new ol.View({ center: ol.proj.fromLonLat([124.5, 52.0]), zoom: 8 }),
-    controls: ol.control.defaults.defaults({ rotate: false, zoom: false })
+    controls: ol.control.defaults.defaults({ rotate: false, zoom: false }).extend([new ol.control.ScaleLine({ units: 'metric', minWidth: 70 })])
   });
   $('baseToggle').addEventListener('click', () => { satOn = !satOn; localStorage.setItem('fp_basemap', satOn ? 'sat' : 'osm'); applyBasemap(); });
   $('zoomIn').addEventListener('click', () => map.getView().animate({ zoom: map.getView().getZoom() + 1, duration: 200 }));
@@ -498,7 +498,7 @@
   $('tokenGet').addEventListener('click', () => {
     window.open(`https://oauth.yandex.ru/authorize?response_type=token&client_id=${YD_CLIENT_ID}`, '_blank');
   });
-  $('qrBtn').addEventListener('click', () => {
+  function showQr() {
     const url = `${location.origin}${location.pathname}${ytoken ? '?yt=' + encodeURIComponent(ytoken) : ''}`;
     try {
       const q = qrcode(0, 'M'); q.addData(url); q.make();
@@ -507,7 +507,9 @@
     } catch (e) { $('qrBox').textContent = String(e); }
     $('qrLink').textContent = ytoken ? url.replace(/yt=.{6}[^&]*/, (m) => m.slice(0, 9) + '…') : url;
     $('qrModal').classList.remove('hidden');
-  });
+  }
+  $('qrBtn').addEventListener('click', showQr);
+  $('qrTop').addEventListener('click', showQr);
   $('qrClose').addEventListener('click', () => $('qrModal').classList.add('hidden'));
   $('tokenSave').addEventListener('click', async () => {
     ytoken = $('ytoken').value.trim();
