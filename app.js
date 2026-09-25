@@ -581,6 +581,7 @@
   // ---------- UI: language ----------
   function refreshDynamicTexts() {
     applyBasemap();
+    if (!lastFix) { $('gpsState').textContent = t('gps_starting'); if (!observer || !$('status').textContent) setStatus(t('wait_gps')); }
     $('trackToggle').textContent = tracking ? t('track_stop') : t('track_start');
     fillClasses();
     if (observer) { $('observerLabel').textContent = `${t('observer_lbl')}: ${observer}`; redrawPoints(); redrawTrack(); refreshPhotoUi(); showSync(); }
