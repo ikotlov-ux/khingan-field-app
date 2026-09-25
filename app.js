@@ -14,6 +14,7 @@
   const DB_NAME = 'field-points';
   const DB_VERSION = 3;
   const YD_ROOT = 'IPEE/Habitat32';               // Yandex Disk folder
+  const YD_CLIENT_ID = '1a41c4a990134194996b23e022088a33'; // Yandex OAuth app "Habitat 32"
   const SYNC_DEBOUNCE_MS = 150 * 1000;             // quiet period after points/photos before upload
   const SYNC_TRACK_MS = 15 * 60 * 1000;            // track-only changes: at most every 15 min
   const SYNC_BACKOFF_MIN = [1, 5, 15, 60];
@@ -486,7 +487,7 @@
   }
   async function initSync() {
     // token may arrive in the URL: ...?yt=TOKEN or #yt=TOKEN (then removed from the address bar)
-    const m = (location.search + location.hash).match(/[?&#]yt=([^&#]+)/);
+    const m = (location.search + location.hash).match(/[?&#](?:yt|access_token)=([^&#]+)/);
     if (m) { ytoken = decodeURIComponent(m[1]); localStorage.setItem('fp_ytoken', ytoken); history.replaceState(null, '', location.pathname); }
     if (!ytoken) { try { ytoken = (await S.getMeta(db, 'ytoken')) || ''; } catch (_) {} }
     if (ytoken) { try { await S.putMeta(db, 'ytoken', ytoken); } catch (_) {} }
@@ -494,6 +495,9 @@
     $('ytoken').value = ytoken;
     showSync();
   }
+  $('tokenGet').addEventListener('click', () => {
+    window.open(`https://oauth.yandex.ru/authorize?response_type=token&client_id=${YD_CLIENT_ID}`, '_blank');
+  });
   $('tokenSave').addEventListener('click', async () => {
     ytoken = $('ytoken').value.trim();
     localStorage.setItem('fp_ytoken', ytoken);
