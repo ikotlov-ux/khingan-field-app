@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
@@ -16,8 +16,11 @@
 :root{--bg:#0d1710;--card:#17251a;--line:#2a3c2e;--green:#2e7d32;--green2:#43a047;--text:#edf5ee;--muted:#a2b5a6;--red:#b3261e;--blue:#1976d2}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;padding:12px 12px 92px;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Roboto,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
-.hdr{display:flex;align-items:center;gap:8px;margin:2px 0 8px}.hdr img{width:46px;height:46px;border-radius:8px;flex:none;object-fit:contain}.hdr .labph{width:46px;height:46px;flex:none}.hdr .lab{flex:1;text-align:center;font-size:13px;font-weight:650;line-height:1.25}.hdr .lab small{display:block;font-size:10px;font-weight:500;color:var(--muted);margin-top:2px}h1{font-size:18px;margin:0 0 10px;text-align:center}
-.footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;line-height:1.4;text-align:left;padding:4px 6px 0}.footer img{width:40px;height:40px;border-radius:6px;flex:none}.footer div{flex:1}.footer a{color:#a2b5a6}
+.hdr{display:flex;align-items:center;gap:8px;margin:2px 0 8px}.hdr img{width:46px;height:46px;border-radius:8px;flex:none;object-fit:contain}.hdr .labph{width:46px;height:46px;flex:none}.hdr .lab{flex:1;text-align:center;font-size:13px;font-weight:650;line-height:1.25}.hdr .lab small{display:block;font-size:10px;font-weight:500;color:var(--muted);margin-top:2px}
+.titlerow{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 10px;position:relative}
+h1{font-size:18px;margin:0;text-align:center}
+.langbtn{position:absolute;right:0;top:-2px;border:1px solid #38503e;border-radius:10px;background:#0f1912;color:#fff;font-size:13px;font-weight:700;padding:6px 10px}
+.footer{color:var(--muted);font-size:11px;line-height:1.4;text-align:center;padding:4px 6px 0}.footer a{color:#a2b5a6}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
 .mapwrap{position:relative}
 #map{height:46vh;min-height:300px;max-height:460px;border-radius:11px;overflow:hidden;background:#1a2a1e}
@@ -32,8 +35,6 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
 .btn{border:0;border-radius:12px;padding:13px;background:#2a3c2e;color:#fff;font-size:15px;font-weight:650}
 .btn.primary{width:100%;padding:16px;background:var(--green);font-size:18px}
 .btn.primary:disabled{opacity:.55}.btn.red{background:var(--red)}.btn.blue{background:var(--blue)}
-.btn .zh{display:block;font-size:12px;font-weight:500;opacity:.85;margin-top:2px}
-.btn.primary .zh{font-size:13px}
 .stats{display:flex;justify-content:space-between;gap:7px;color:var(--muted);font-size:12px;margin:7px 2px 0}
 .coord{font-family:ui-monospace,monospace;color:#c5ebcb;font-size:14px}
 .status{font-size:13px;color:var(--muted);min-height:19px;margin:8px 0 2px}
@@ -48,122 +49,127 @@ select,input{width:100%;padding:11px;border-radius:10px;border:1px solid #38503e
 .popup{position:absolute;background:#fff;color:#17251a;padding:7px 9px;border-radius:8px;border:1px solid #777;font-size:12px;min-width:150px;transform:translate(-50%,-115%)}
 .pill{display:inline-block;padding:6px 10px;border-radius:20px;background:#263b2b;color:#cce6d1;font-size:12px;align-self:center}
 .ol-attribution{font-size:9px}
-.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #38503e}
-.thumbs .cap{font-size:10px;color:var(--muted);text-align:center;width:64px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+details summary{cursor:pointer;font-size:14px;font-weight:650;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:'▸ ';color:var(--muted)}details[open] summary::before{content:'▾ '}
+.sync{font-size:12px;color:var(--muted);margin-top:6px}
 .cam{position:fixed;inset:0;z-index:200;background:#000;display:flex;flex-direction:column}
 .cam video{flex:1;width:100%;object-fit:cover;background:#000}
+.cam .ovl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .cam .top{position:absolute;left:0;right:0;top:0;padding:10px 80px 10px 80px;background:linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,0));color:#fff}
-.cam .rumb{font-size:28px;font-weight:800;letter-spacing:1px;text-align:center;line-height:1.1}
+.cam .rumb{font-size:30px;font-weight:800;letter-spacing:1px;text-align:center;line-height:1.1}
 .cam .rumb small{display:block;font-size:14px;font-weight:600;opacity:.9}
-.cam .hint{font-size:12px;opacity:.85;text-align:center;margin-top:4px}
+.cam .hint{font-size:11px;opacity:.85;text-align:center;margin-top:4px}
 .cam .rose{position:absolute;right:12px;top:12px;width:64px;height:64px}
 .cam .bottom{position:absolute;left:0;right:0;bottom:0;padding:14px 16px 22px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.75))}
 .cam .shutter{width:76px;height:76px;border-radius:50%;background:#fff;border:6px solid rgba(255,255,255,.45);box-shadow:0 0 0 2px #000 inset}
 .cam .shutter:disabled{opacity:.4}
 .cam .sbtn{border:0;border-radius:12px;padding:10px 14px;background:rgba(255,255,255,.18);color:#fff;font-size:14px;font-weight:650}
 .cam .meta{position:absolute;left:12px;bottom:112px;color:#fff;font-size:12px;font-family:ui-monospace,monospace;text-shadow:0 0 4px #000}
-.crosshair{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid rgba(255,255,255,.8);border-radius:50%;pointer-events:none}
 </style>
 </head>
 <body>
 <div id="observerModal" class="modal">
  <div class="modalbox">
-  <h2>Select observer · 选择观察者</h2>
-  <p>Choose your surname. It will be used in today's file names.<br>请选择您的姓氏，将用于今天的文件名。</p>
+  <h2 data-i18n="obs_title"></h2>
+  <p data-i18n="obs_text"></p>
   <select id="observerSelect">
-   <option value="">— Select · 请选择 —</option><option>Kotlov</option><option>Yachmennikova</option><option>Rozhnov</option><option>Zhu</option><option>Aristarkhova</option><option>Rodnikova</option><option>Ogurtsov</option><option>Sandlersky</option><option value="__other__">Other… · 其他…</option>
+   <option value="" data-i18n="obs_select"></option><option>Kotlov</option><option>Yachmennikova</option><option>Rozhnov</option><option>Zhu</option><option>Aristarkhova</option><option>Rodnikova</option><option>Ogurtsov</option><option>Sandlersky</option><option value="__other__" data-i18n="obs_other"></option>
   </select>
-  <input id="observerOther" class="gap hidden" placeholder="Enter your surname · 输入姓氏">
-  <button id="observerConfirm" class="btn primary gap">Continue<span class="zh">继续</span></button>
+  <input id="observerOther" class="gap hidden" data-i18n-ph="obs_other_ph">
+  <button id="observerConfirm" class="btn primary gap" data-i18n="continue"></button>
  </div>
 </div>
 
 <div id="shareModal" class="modal hidden">
  <div class="modalbox">
-  <h2>Share one file · 分享一个文件</h2>
-  <p>WeChat and most messengers accept one file at a time.<br>微信等应用一次只能接收一个文件。</p>
-  <button id="sharePoints" class="btn primary">Points CSV<span class="zh">点位 CSV</span></button>
-  <button id="shareTrack" class="btn primary gap">Track CSV<span class="zh">轨迹 CSV</span></button>
-  <button id="sharePhotos" class="btn primary gap">Photos of selected point (JPEG)<span class="zh">所选点位的照片</span></button>
-  <button id="shareCancel" class="btn gap">Cancel<span class="zh">取消</span></button>
+  <h2 data-i18n="share_title"></h2>
+  <p data-i18n="share_zip_blocked"></p>
+  <button id="sharePoints" class="btn primary" data-i18n="share_csv"></button>
+  <button id="sharePhotos" class="btn primary gap" data-i18n="share_photos"></button>
+  <button id="shareCancel" class="btn gap" data-i18n="cancel"></button>
  </div>
 </div>
 
 <div class="hdr">
  <img src="icon-192.png" alt="ИПЭЭ РАН">
- <div class="lab">Лаборатория биогеоценологии<br>им. В.Н. Сукачева<small>V.N. Sukachev Laboratory of Biogeocenology · 苏卡切夫生物地理群落学实验室</small></div>
+ <div class="lab"><span data-i18n-html="lab_main"></span><small data-i18n="lab_sub"></small></div>
  <img id="labLogo" class="labph" src="lab-logo.png" alt="Лаборатория биогеоценологии" onerror="this.removeAttribute('src');this.style.visibility='hidden'">
 </div>
-<h1>Habitat 32</h1>
+<div class="titlerow"><h1>Habitat 32</h1><button id="langBtn" class="langbtn" data-i18n="lang_btn"></button></div>
 <div class="card" style="padding:7px">
  <div class="mapwrap">
   <div id="map"></div>
   <div class="mapbtns">
-   <button id="zoomIn" class="mb" title="Zoom in · 放大">+</button>
-   <button id="zoomOut" class="mb" title="Zoom out · 缩小">−</button>
-   <button id="centerMe" class="mb" title="Center on me · 定位居中">⌖</button>
-   <button id="baseToggle" class="mb small" title="Basemap · 底图">Sat<br>卫星</button>
+   <button id="zoomIn" class="mb" data-i18n-title="zoom_in">+</button>
+   <button id="zoomOut" class="mb" data-i18n-title="zoom_out">−</button>
+   <button id="centerMe" class="mb" data-i18n-title="center_me">⌖</button>
+   <button id="baseToggle" class="mb small" data-i18n-title="basemap"></button>
   </div>
   <div id="popup" class="popup hidden"></div>
  </div>
- <div class="stats"><span id="observerLabel">Observer · 观察者: —</span><span id="dateLabel">—</span></div>
+ <div class="stats"><span id="observerLabel">—</span><span id="tileState"></span><span id="dateLabel">—</span></div>
 </div>
 
 <div class="card">
- <div class="row"><button id="trackToggle" class="btn blue">⏸ Stop track<span class="zh">停止轨迹</span></button><button id="changeObserver" class="btn">👤 Observer<span class="zh">观察者</span></button></div>
- <div class="stats"><span id="trackStats">Track · 轨迹: 0</span><span id="gpsState">GPS: starting… · 启动中…</span></div>
+ <div class="row"><button id="trackToggle" class="btn blue"></button><button id="changeObserver" class="btn" data-i18n="observer_btn"></button></div>
+ <div class="stats"><span id="trackStats">—</span><span id="gpsState" data-i18n="gps_starting"></span></div>
 </div>
 
 <div class="card">
- <label>Habitat class · 生境类型</label><select id="category"></select>
- <label class="gap">Description (optional) · 描述（可选）</label><input id="note" placeholder="e.g. dominated by Larix gmelinii · 例如：以兴安落叶松为主">
+ <label data-i18n="class_lbl"></label><select id="category"></select>
+ <label class="gap" data-i18n="desc_lbl"></label><input id="note" data-i18n-ph="desc_ph">
 </div>
 
 <div class="card">
- <div class="row"><div><label>Latitude · 纬度</label><div id="lat" class="coord">—</div></div><div><label>Longitude · 经度</label><div id="lon" class="coord">—</div></div></div>
- <div id="status" class="status">Waiting for GPS position… · 等待 GPS 定位…</div>
- <button id="record" class="btn primary">📍 Record point<span class="zh">记录点</span></button>
+ <div class="row"><div><label data-i18n="lat"></label><div id="lat" class="coord">—</div></div><div><label data-i18n="lon"></label><div id="lon" class="coord">—</div></div></div>
+ <div id="status" class="status" data-i18n="wait_gps"></div>
+ <button id="record" class="btn primary" data-i18n="record"></button>
 </div>
 
 <div class="card">
- <label>Attach photo to point · 照片关联点位</label>
- <select id="photoPoint"><option value="">— Record a point first · 请先记录点 —</option></select>
- <button id="takePhoto" class="btn primary gap" disabled>📷 Photo<span class="zh">拍照</span></button>
+ <label data-i18n="photo_point_lbl"></label>
+ <select id="photoPoint"></select>
+ <button id="takePhoto" class="btn primary gap" disabled data-i18n="photo_btn"></button>
  <input id="photoFile" type="file" accept="image/*" capture="environment" class="hidden">
- <div class="stats"><span id="photoCount">Today's photos · 今日照片: 0</span><span id="compassState">Compass · 罗盘: —</span></div>
- <div id="thumbs" class="thumbs"></div>
- <p class="tiny">Photos are named surname-dd-mm-yy-pointID-N.jpg. Coordinates and camera heading are written into EXIF and stamped on the image.<br>照片命名为 姓氏-日-月-年-点号-序号.jpg，坐标和相机方向写入 EXIF 并印在图片上。</p>
+ <div class="stats"><span id="photoCount">—</span><span id="compassState">—</span></div>
+ <p class="tiny" data-i18n="photo_note"></p>
 </div>
 
 <div class="card">
- <div class="row"><span id="pointCount" class="pill">Today's points · 今日点数: 0</span><button id="clearToday" class="btn red">Clear today<span class="zh">清除今日</span></button></div>
- <p class="tiny">Points and track vertices are saved to this phone immediately. The map shows only today's data for the selected observer. Keep the app open while recording a track.<br>点和轨迹会立即保存到本手机。地图仅显示所选观察者今天的数据。记录轨迹时请保持应用打开。</p>
+ <div class="row"><span id="pointCount" class="pill">—</span><button id="clearToday" class="btn red" data-i18n="clear_today"></button></div>
+ <p class="tiny" data-i18n="points_note"></p>
+</div>
+
+<div class="card">
+ <details id="syncDetails">
+  <summary><span data-i18n="sync_title"></span>: <span id="syncState">—</span></summary>
+  <p class="tiny" data-i18n-html="sync_note"></p>
+  <label class="gap" data-i18n="token_lbl"></label>
+  <input id="ytoken" type="password" autocomplete="off" data-i18n-ph="token_ph">
+  <div class="row gap"><button id="tokenSave" class="btn" data-i18n="save"></button><button id="syncNow" class="btn blue" data-i18n="sync_now"></button></div>
+ </details>
 </div>
 
 <div id="camModal" class="cam hidden">
  <video id="camVideo" autoplay playsinline muted></video>
- <div class="crosshair"></div>
+ <svg id="camOverlay" class="ovl"></svg>
  <div class="top">
-  <div class="rumb" id="camRumb">—<small id="camRumbSub">Compass · Компас · 罗盘: waiting…</small></div>
-  <div class="hint">Point the camera at the target. Heading is recorded at capture.<br>将相机对准目标，拍摄时记录方向。</div>
+  <div class="rumb" id="camRumb">—<small id="camRumbSub"></small></div>
+  <div class="hint" data-i18n="cam_hint"></div>
  </div>
  <svg class="rose" id="camRose" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="rgba(0,0,0,.45)" stroke="#fff" stroke-width="2"/><g id="roseDial"><polygon points="50,8 44,50 56,50" fill="#e53935"/><polygon points="50,92 44,50 56,50" fill="#fff"/><text x="50" y="22" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">N</text></g><circle cx="50" cy="50" r="4" fill="#fff"/></svg>
  <div class="meta" id="camMeta"></div>
  <div class="bottom">
-  <button id="camClose" class="sbtn">✕ Close<br>关闭</button>
-  <button id="camShutter" class="shutter" title="Capture · 拍摄"></button>
+  <button id="camClose" class="sbtn" data-i18n="close"></button>
+  <button id="camShutter" class="shutter"></button>
   <span style="width:70px"></span>
  </div>
 </div>
 
-<div class="footer">
- <img src="icon-192.png" alt="ИПЭЭ РАН"><div>© 2026 Ivan P. Kotlov, A.N. Severtsov Institute of Ecology and Evolution, Russian Academy of Sciences (IEE RAS). All rights reserved.<br>
- © 2026 伊万·科特洛夫（Ivan P. Kotlov），俄罗斯科学院谢韦尔佐夫生态与进化问题研究所。保留所有权利。<br>
- © 2026 И. П. Котлов, ИПЭЭ РАН. Правообладатель. · <a href="https://github.com/ikotlov-ux/khingan-field-app">Source</a></div>
-</div>
+<div class="footer"><span data-i18n="footer"></span> · <a href="https://github.com/ikotlov-ux/khingan-field-app" data-i18n="source"></a></div>
 
-<div class="bar"><button id="download" class="btn">⬇ Export ZIP<span class="zh">导出 ZIP</span></button><button id="share" class="btn primary" style="margin:0;padding:11px">↗ Share<span class="zh">分享</span></button></div>
-<script src="classes.js"></script><script src="app.js"></script>
+<div class="bar"><button id="share" class="btn primary" style="margin:0;padding:14px" data-i18n="share"></button></div>
+<script src="i18n.js"></script><script src="classes.js"></script><script src="sync-core.js"></script><script src="app.js"></script>
 </body>
 </html>
