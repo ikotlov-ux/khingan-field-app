@@ -200,7 +200,7 @@
     taken.forEach((ph, i) => {
       const d = diff(ph.heading_deg);
       if (Math.abs(d) > CAM_FOV_H + 5) return;
-      const cx = W / 2 + d * pxPerDeg, half = W / 2, inset = 90 + (i % 5) * 14;
+      const cx = W / 2 + d * pxPerDeg, half = W / 2, inset = 135 + (i % 5) * 14;
       const x1 = Math.max(2, cx - half), x2 = Math.min(W - 2, cx + half);
       if (x2 - x1 < 4) return;
       s += `<rect x="${x1}" y="${inset}" width="${x2 - x1}" height="${H - inset * 2}" fill="rgba(255,213,79,0.10)" stroke="#ffd54f" stroke-width="2" stroke-dasharray="8 5"/>`;
