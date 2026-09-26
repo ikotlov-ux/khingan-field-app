@@ -20,7 +20,7 @@
   const SYNC_BACKOFF_MIN = [1, 5, 15, 60];
   const PREFETCH_ZOOMS = [15, 14, 13, 12, 11, 10];
   const PREFETCH_RADIUS_M = 2500;
-  const PREFETCH_MAX = 500;
+  const PREFETCH_MAX = 600;
   const CAM_FOV_H = 50;                            // approx. horizontal field of view of a phone camera in portrait, degrees
   const MAX_SIDE = 1600;
 
@@ -233,21 +233,44 @@
 
   const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   const SAT_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  // 天地图 (Tianditu): Web Mercator tiles, CGCS2000 ≈ WGS 84 (no GCJ-02 offset). Single host t0 so the offline cache is hit consistently.
+  const TDT_URL = (layer) => `https://t0.tianditu.gov.cn/DataServer?T=${layer}&x={x}&y={y}&l={z}&tk={tk}`;
+  let tdtKey = localStorage.getItem('fp_tdtkey') || '';
+  const tdtUrl = (layer) => TDT_URL(layer).replace('{tk}', tdtKey);
   const osmLayer = new ol.layer.Tile({ source: new ol.source.OSM({ url: OSM_URL, crossOrigin: 'anonymous' }) });
   const satLayer = new ol.layer.Tile({ visible: false, source: new ol.source.XYZ({ url: SAT_URL, attributions: 'Imagery © Esri, Maxar, Earthstar Geographics', maxZoom: 19, crossOrigin: 'anonymous' }) });
-  let satOn = localStorage.getItem('fp_basemap') === 'sat';
+  const tdtSrc = (layer) => new ol.source.XYZ({ url: tdtUrl(layer), attributions: '© 天地图 GS(2024)1140号', maxZoom: 18 });
+  const tdtVecLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('vec_w') });
+  const tdtCvaLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('cva_w') });   // labels for the vector map
+  const tdtImgLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('img_w') });
+  const tdtCiaLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('cia_w') });   // labels for imagery
+  const BASEMAPS = ['osm', 'sat', 'tdt_vec', 'tdt_img'];
+  let basemap = localStorage.getItem('fp_basemap') || 'osm';
+  if (!BASEMAPS.includes(basemap)) basemap = 'osm';
+  function refreshTdtSources() {
+    tdtVecLayer.setSource(tdtSrc('vec_w')); tdtCvaLayer.setSource(tdtSrc('cva_w'));
+    tdtImgLayer.setSource(tdtSrc('img_w')); tdtCiaLayer.setSource(tdtSrc('cia_w'));
+  }
   function applyBasemap() {
-    osmLayer.setVisible(!satOn); satLayer.setVisible(satOn);
-    $('baseToggle').textContent = satOn ? t('base_map') : t('base_sat');
-    $('baseToggle').classList.toggle('active', satOn);
+    osmLayer.setVisible(basemap === 'osm'); satLayer.setVisible(basemap === 'sat');
+    tdtVecLayer.setVisible(basemap === 'tdt_vec'); tdtCvaLayer.setVisible(basemap === 'tdt_vec');
+    tdtImgLayer.setVisible(basemap === 'tdt_img'); tdtCiaLayer.setVisible(basemap === 'tdt_img');
+    $('baseToggle').textContent = t('bm_' + basemap);
+    $('baseToggle').classList.toggle('active', basemap !== 'osm');
+    document.querySelectorAll('#baseMenu button').forEach((b) => b.classList.toggle('active', b.dataset.bm === basemap));
+  }
+  function setBasemap(bm) {
+    if (bm.startsWith('tdt') && !tdtKey) { setStatus(t('tdt_nokey'), true); showQr(); return; }
+    basemap = bm; localStorage.setItem('fp_basemap', bm); applyBasemap(); prefetchTiles();
   }
   const map = new ol.Map({
     target: 'map',
-    layers: [osmLayer, satLayer, new ol.layer.Vector({ source: trackSource, style: trackStyle }), new ol.layer.Vector({ source: posSource, style: posStyle }), new ol.layer.Vector({ source: pointSource, style: pointStyle })],
+    layers: [osmLayer, satLayer, tdtVecLayer, tdtCvaLayer, tdtImgLayer, tdtCiaLayer, new ol.layer.Vector({ source: trackSource, style: trackStyle }), new ol.layer.Vector({ source: posSource, style: posStyle }), new ol.layer.Vector({ source: pointSource, style: pointStyle })],
     view: new ol.View({ center: ol.proj.fromLonLat([124.5, 52.0]), zoom: 8 }),
     controls: ol.control.defaults.defaults({ rotate: false, zoom: false }).extend([new ol.control.ScaleLine({ units: 'metric', minWidth: 70 })])
   });
-  $('baseToggle').addEventListener('click', () => { satOn = !satOn; localStorage.setItem('fp_basemap', satOn ? 'sat' : 'osm'); applyBasemap(); });
+  $('baseToggle').addEventListener('click', () => $('baseMenu').classList.toggle('hidden'));
+  document.querySelectorAll('#baseMenu button').forEach((b) => b.addEventListener('click', () => { $('baseMenu').classList.add('hidden'); setBasemap(b.dataset.bm); }));
   $('zoomIn').addEventListener('click', () => map.getView().animate({ zoom: map.getView().getZoom() + 1, duration: 200 }));
   $('zoomOut').addEventListener('click', () => map.getView().animate({ zoom: map.getView().getZoom() - 1, duration: 200 }));
   $('centerMe').addEventListener('click', () => {
@@ -320,12 +343,12 @@
     const lat = ol.proj.toLonLat(center)[1];
     const r = PREFETCH_RADIUS_M / Math.cos(lat * D2R); // ground metres -> Web Mercator units
     const ext = ol.extent.extend(view.calculateExtent(map.getSize()), [center[0] - r, center[1] - r, center[0] + r, center[1] + r]);
+    const tpls = basemap.startsWith('tdt') && tdtKey ? [tdtUrl('img_w'), tdtUrl('cia_w'), tdtUrl('vec_w'), tdtUrl('cva_w')] : [OSM_URL, SAT_URL];
     const urls = [];
     for (const z of PREFETCH_ZOOMS) {
       const tr = tileGrid.getTileRangeForExtentAndZ(ext, z);
       for (let x = tr.minX; x <= tr.maxX; x++) for (let y = tr.minY; y <= tr.maxY; y++) {
-        urls.push(OSM_URL.replace('{z}', z).replace('{x}', x).replace('{y}', y));
-        urls.push(SAT_URL.replace('{z}', z).replace('{x}', x).replace('{y}', y));
+        for (const tpl of tpls) urls.push(tpl.replace('{z}', z).replace('{x}', x).replace('{y}', y));
       }
     }
     if (urls.length > PREFETCH_MAX) urls.length = PREFETCH_MAX;
@@ -340,7 +363,7 @@
     const worker = async () => {
       while (missing.length && my === prefetchRun && navigator.onLine) {
         const u = missing.shift();
-        try { const res = await fetch(u, { mode: 'cors' }); if (res.ok) await cache.put(u, res); } catch (_) {}
+        try { const res = await fetch(u, { mode: u.includes('tianditu') ? 'no-cors' : 'cors' }); if (res.ok || res.type === 'opaque') await cache.put(u, res); } catch (_) {}
         done++; if (done % 5 === 0 || done === total) show();
       }
     };
@@ -489,7 +512,15 @@
   async function initSync() {
     // token may arrive in the URL: ...?yt=TOKEN or #yt=TOKEN (then removed from the address bar)
     const m = (location.search + location.hash).match(/[?&#](?:yt|access_token)=([^&#]+)/);
-    if (m) { ytoken = decodeURIComponent(m[1]); localStorage.setItem('fp_ytoken', ytoken); history.replaceState(null, '', location.pathname); }
+    const mk = (location.search + location.hash).match(/[?&#]tk=([^&#]+)/);
+    if (mk) { tdtKey = decodeURIComponent(mk[1]); localStorage.setItem('fp_tdtkey', tdtKey); refreshTdtSources(); }
+    if (m || mk) history.replaceState(null, '', location.pathname);
+    if (m) { ytoken = decodeURIComponent(m[1]); localStorage.setItem('fp_ytoken', ytoken); }
+    $('tdtkey').value = tdtKey;
+    $('tdtSave').addEventListener('click', () => {
+      tdtKey = $('tdtkey').value.trim(); localStorage.setItem('fp_tdtkey', tdtKey); refreshTdtSources();
+      if (tdtKey) { setStatus(t('tdt_saved')); if (!basemap.startsWith('tdt')) setBasemap('tdt_img'); else applyBasemap(); }
+    });
     if (!ytoken) { try { ytoken = (await S.getMeta(db, 'ytoken')) || ''; } catch (_) {} }
     if (ytoken) { try { await S.putMeta(db, 'ytoken', ytoken); } catch (_) {} }
     try { lastSync = await S.getMeta(db, 'lastSync'); } catch (_) {}
@@ -500,7 +531,10 @@
     window.open(`https://oauth.yandex.ru/authorize?response_type=token&client_id=${YD_CLIENT_ID}`, '_blank');
   });
   function showQr() {
-    const url = `${location.origin}${location.pathname}${ytoken ? '?yt=' + encodeURIComponent(ytoken) : ''}`;
+    const q = [];
+    if (ytoken) q.push('yt=' + encodeURIComponent(ytoken));
+    if (tdtKey) q.push('tk=' + encodeURIComponent(tdtKey));
+    const url = `${location.origin}${location.pathname}${q.length ? '?' + q.join('&') : ''}`;
     try {
       const q = qrcode(0, 'M'); q.addData(url); q.make();
       $('qrBox').innerHTML = q.createSvgTag({ cellSize: 5, margin: 0, scalable: true });

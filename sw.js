@@ -1,5 +1,5 @@
 /* Offline app-shell cache + tile cache + Background Sync upload for Habitat 32. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v20';
+const CACHE = 'fp-shell-v21';
 const TILES = 'fp-tiles';
 const SHELL = [
   './', './index.html', './app.js', './i18n.js', './classes.js', './sync-core.js', './manifest.webmanifest',
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (e) => {
       if (res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
       return res;
     })));
-  } else if (/tile\.openstreetmap\.org|arcgisonline\.com/.test(url.host)) {
+  } else if (/tile\.openstreetmap\.org|arcgisonline\.com|tianditu\.gov\.cn/.test(url.host)) {
     // Map tiles: network first, fall back to whatever is cached.
     e.respondWith(fetch(req).then((res) => {
       if (res.ok) caches.open(TILES).then((c) => c.put(req, res.clone()));

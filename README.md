@@ -66,9 +66,13 @@ Every change (point, photo, deletion) marks the day as modified; 2–3 minutes a
 
 Setup (once): create an OAuth app at https://oauth.yandex.ru/client/new (platform "Web services", redirect URI `https://oauth.yandex.ru/verification_code`, permissions `cloud_api:disk.write` and `cloud_api:disk.read`), open `https://oauth.yandex.ru/authorize?response_type=token&client_id=<ID>` while logged in to the Disk owner's account and copy the token. Paste it into **Yandex Disk → OAuth token → Save**, or open the app once with `?yt=<token>` appended to the URL (the token is stored on the phone and removed from the address bar). Colleagues' phones need the same token (or their own, if the folder is shared with them with edit rights).
 
+## Basemaps
+
+The basemap button on the map opens a menu with four options: OpenStreetMap, Esri World Imagery, 天地图 map (vec_w + labels) and 天地图 imagery (img_w + labels). OSM and Esri tiles are frequently unreachable from mainland China; 天地图 (Tianditu, CGCS2000 ≈ WGS 84, no GCJ-02 offset) works there without a VPN but needs a free browser key (`tk`) from https://console.tianditu.gov.cn (key type "浏览器端", domain `ikotlov-ux.github.io`). Enter the key in the QR dialog settings or open the app once with `?tk=<key>`; the QR link includes it together with the Disk token.
+
 ## Offline map cache
 
-Tiles that were displayed are cached automatically (OSM and Esri imagery). In addition, whenever the map is moved while online, the app prefetches both basemaps for zoom levels 15…10 covering the visible area plus 2.5 km around the map centre (up to 500 tiles per movement, 4 parallel requests; progress is shown under the map). Working zooms 16–18 are cached as you view them.
+Tiles that were displayed are cached automatically (all basemaps). In addition, whenever the map is moved while online, the app prefetches the current basemap family (OSM + Esri, or both 天地图 layers with labels) for zoom levels 15…10 covering the visible area plus 2.5 km around the map centre (up to 500 tiles per movement, 4 parallel requests; progress is shown under the map). Working zooms 16–18 are cached as you view them.
 
 
 ## Track limitations
