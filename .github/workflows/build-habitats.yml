@@ -15,8 +15,9 @@ jobs:
         with: { python-version: '3.12' }
       - run: pip install openpyxl
       - run: python tools/build_habitats.py data/habitat_db.xlsx habitats.js
-      - name: Bump service-worker cache version
+      - name: Bump service-worker cache version (only if habitats.js changed)
         run: |
+          git diff --quiet habitats.js && exit 0
           python - <<'PY'
           import re, pathlib
           p = pathlib.Path('sw.js'); s = p.read_text(encoding='utf-8')
