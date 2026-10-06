@@ -136,7 +136,7 @@
   let firstFixCentered = false;
 
   // ---------- habitat database (generated habitats.js) ----------
-  const APP_VERSION = '30';
+  const APP_VERSION = '31';
   const DB = { regions: [], categories: [], classes: [], habitats: [], generated: '' };
   function loadDbObject(obj) {
     if (!obj || !Array.isArray(obj.classes)) return false;
@@ -1041,7 +1041,7 @@
   // ---------- service worker ----------
   if ('serviceWorker' in navigator && window.isSecureContext) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').then((reg) => {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
         const check = () => { if (navigator.onLine) reg.update().catch(() => {}); };
         window.addEventListener('online', check); setInterval(check, 30 * 60000);
       }).catch(() => {});

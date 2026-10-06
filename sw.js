@@ -1,5 +1,5 @@
 /* Offline app-shell cache + tile cache + Background Sync upload for Habitat 32. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v30';
+const CACHE = 'fp-shell-v31';
 const TILES = 'fp-tiles';
 const SHELL = [
   './', './index.html', './app.js', './i18n.js', './habitats.js', './sync-core.js', './manifest.webmanifest',
@@ -20,8 +20,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin === self.location.origin && /\/habitats\.js$/.test(url.pathname)) {
     // Habitat database: network first (auto-update), cache as fallback.
-    e.respondWith(fetch(req).then((res) => {
-      if (res.ok) caches.open(CACHE).then((c) => c.put(new Request(url.pathname), res.clone()));
+    e.respondWith(fetch(new Request(url.href, { cache: 'no-cache' })).then((res) => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(new Request(url.pathname), copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: true })));
   } else if (url.origin === self.location.origin) {
@@ -29,7 +29,8 @@ self.addEventListener('fetch', (e) => {
     e.respondWith((async () => {
       const cached = caches.match(req, { ignoreSearch: true });
       try {
-        const res = await Promise.race([fetch(req), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))]);
+        // cache:'no-cache' revalidates with GitHub Pages instead of reusing the browser's 10-minute HTTP cache
+        const res = await Promise.race([fetch(new Request(url.href, { cache: 'no-cache', credentials: 'same-origin' })), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))]);
         if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
         return res;
       } catch (_) {
