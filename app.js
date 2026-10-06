@@ -136,10 +136,50 @@
   let firstFixCentered = false;
 
   // ---------- habitat database (generated habitats.js) ----------
-  const DB = window.HABITAT_DB || { regions: [], categories: [], classes: [], habitats: [] };
+  const APP_VERSION = '26';
+  const DB = { regions: [], categories: [], classes: [], habitats: [], generated: '' };
+  function loadDbObject(obj) {
+    if (!obj || !Array.isArray(obj.classes)) return false;
+    Object.assign(DB, { regions: obj.regions || [], categories: obj.categories || [], classes: obj.classes || [], habitats: obj.habitats || [], generated: obj.generated || '' });
+    catById.clear(); DB.categories.forEach((c) => catById.set(c.id, c));
+    classById.clear(); DB.classes.forEach((c) => classById.set(c.id, c));
+    return true;
+  }
+  const catById = new Map(), classById = new Map();
+  loadDbObject(window.HABITAT_DB);
+  function showVersion() {
+    const g = DB.generated ? new Date(DB.generated) : null;
+    $('verLabel').textContent = `v${APP_VERSION}` + (g && !isNaN(g) ? ` · ${t('db_short')} ${pad(g.getDate())}.${pad(g.getMonth() + 1)}.${g.getFullYear()}` : '');
+  }
+  // Auto-update of the habitat database: fetch habitats.js from the network (SW passes it through), hot-swap, persist in IndexedDB.
+  let dbCheckAt = 0;
+  async function refreshHabitatDb(force) {
+    if (!navigator.onLine || (!force && Date.now() - dbCheckAt < 30 * 60000)) return;
+    dbCheckAt = Date.now();
+    try {
+      const res = await fetch('habitats.js?ts=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) return;
+      const txt = await res.text();
+      const obj = new Function('window', txt + '; return window.HABITAT_DB;')({});
+      if (!obj || !Array.isArray(obj.classes)) return;
+      if (obj.generated && obj.generated === DB.generated) return;
+      loadDbObject(obj);
+      try { await S.putMeta(db, 'habitats_js', txt); } catch (_) {}
+      if (region && !DB.regions.some((r) => r.id === region)) { region = ''; localStorage.removeItem(REGION_KEY); }
+      fillClasses(); showVersion();
+      setStatus(t('db_updated', { d: $('verLabel').textContent }));
+    } catch (_) {}
+  }
+  async function loadStoredDb() {
+    try {
+      const txt = await S.getMeta(db, 'habitats_js');
+      if (!txt) return;
+      const obj = new Function('window', txt + '; return window.HABITAT_DB;')({});
+      if (obj && obj.generated && (!DB.generated || obj.generated > DB.generated)) loadDbObject(obj);
+    } catch (_) {}
+  }
+  window.addEventListener('online', () => refreshHabitatDb(true));
   const REGION_KEY = 'fp_region';
-  const catById = new Map(DB.categories.map((c) => [c.id, c]));
-  const classById = new Map(DB.classes.map((c) => [c.id, c]));
   let region = localStorage.getItem(REGION_KEY) || '';
   if (region && !DB.regions.some((r) => r.id === region)) region = '';
   const regionById = (id) => DB.regions.find((r) => r.id === id);
@@ -687,7 +727,7 @@
     applyBasemap();
     if (!lastFix) { $('gpsState').textContent = t('gps_starting'); if (!observer || !$('status').textContent) setStatus(t('wait_gps')); }
     $('trackToggle').textContent = tracking ? t('track_stop') : t('track_start');
-    fillClasses();
+    fillClasses(); showVersion();
     if (observer) { $('observerLabel').textContent = `${t('observer_lbl')}: ${observer}`; redrawPoints(); redrawTrack(); refreshPhotoUi(); showSync(); }
     else { $('pointCount').textContent = `${t('points_today')}: 0`; $('trackStats').textContent = `${t('track_lbl')}: 0`; $('photoCount').textContent = `${t('photos_today')}: 0`; refreshPhotoUi(); showSync(); }
     updateCompassUi();
@@ -754,8 +794,33 @@
     }
     if (cur && habitatByValue(cur)) sel.value = cur;
     $('regionEmpty').classList.toggle('hidden', !region || habitatOptions().length > 1);
+    buildHabList(); updateHabBtn();
     showHabitatInfo();
   }
+  function habLabel(o) {
+    if (!o) return t('hab_pick');
+    if (o.other) return t('hab_other');
+    const nm = (o.rec && (lang === 'zh' ? (o.rec.zh || o.rec.ru) : (o.rec.ru || o.rec.zh))) || L(o.cls);
+    return o.type == null ? `${o.cls.id} ${nm}` : `${o.cls.id}.${o.type} ${nm}`;
+  }
+  function updateHabBtn() { $('categoryBtn').textContent = habLabel(habitatByValue($('category').value)); }
+  function buildHabList() {
+    const box = $('habList'); box.innerHTML = '';
+    let lastCat = null, lastCls = null;
+    for (const o of habitatOptions()) {
+      if (!o.other) {
+        const cat = catById.get(o.cls.cat);
+        if (cat !== lastCat) { lastCat = cat; lastCls = null; const h = document.createElement('div'); h.className = 'hab-cat'; h.textContent = cat ? `${cat.id}. ${L(cat)}` : '—'; box.appendChild(h); }
+        if (o.cls !== lastCls) { lastCls = o.cls; const h = document.createElement('div'); h.className = 'hab-cls'; h.textContent = `${o.cls.id} ${L(o.cls)}`; box.appendChild(h); }
+      }
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'hab-item' + (o.other ? ' other' : '') + ($('category').value === o.value ? ' sel' : '');
+      b.textContent = habLabel(o); b.dataset.v = o.value;
+      b.addEventListener('click', () => { $('category').value = o.value; $('category').dispatchEvent(new Event('change')); $('habModal').classList.add('hidden'); });
+      box.appendChild(b);
+    }
+  }
+  $('categoryBtn').addEventListener('click', () => { buildHabList(); $('habModal').classList.remove('hidden'); const s = $('habList').querySelector('.sel'); if (s) s.scrollIntoView({ block: 'center' }); });
+  $('habClose').addEventListener('click', () => $('habModal').classList.add('hidden'));
   function showHabitatInfo() {
     const o = habitatByValue($('category').value);
     const box = $('habInfo'), txt = $('habInfoText');
@@ -775,7 +840,7 @@
     txt.innerHTML = parts.map((s) => `<p>${xmlEsc(s)}</p>`).join('');
     box.classList.remove('hidden');
   }
-  $('category').addEventListener('change', () => { localStorage.setItem('fp_last_class', $('category').value); showHabitatInfo(); });
+  $('category').addEventListener('change', () => { localStorage.setItem('fp_last_class', $('category').value); updateHabBtn(); showHabitatInfo(); });
 
   // ---------- UI: record point ----------
   $('record').disabled = true;
@@ -975,7 +1040,18 @@
 
   // ---------- service worker ----------
   if ('serviceWorker' in navigator && window.isSecureContext) {
-    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        const check = () => { if (navigator.onLine) reg.update().catch(() => {}); };
+        window.addEventListener('online', check); setInterval(check, 30 * 60000);
+      }).catch(() => {});
+      let hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController) { hadController = true; return; }
+        $('updateBar').classList.remove('hidden');
+      });
+    });
+    $('updateNow').addEventListener('click', () => location.reload());
   }
 
   // ---------- boot ----------
@@ -984,8 +1060,11 @@
     try { db = await openDb(); } catch (e) { setStatus(t('db_fail', { e: e.message }), true); return; }
     await initOpfs();
     await initSync();
-    refreshDynamicTexts();
+    await loadStoredDb();
+    refreshDynamicTexts(); showVersion();
     $('dateLabel').textContent = todayKey();
     showObserverModal();
+    refreshHabitatDb(true);
+    setInterval(() => refreshHabitatDb(false), 30 * 60000);
   })();
 })();

@@ -1,5 +1,5 @@
 /* Offline app-shell cache + tile cache + Background Sync upload for Habitat 32. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v25';
+const CACHE = 'fp-shell-v26';
 const TILES = 'fp-tiles';
 const SHELL = [
   './', './index.html', './app.js', './i18n.js', './habitats.js', './sync-core.js', './manifest.webmanifest',
@@ -18,7 +18,13 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin === self.location.origin) {
+  if (url.origin === self.location.origin && /\/habitats\.js$/.test(url.pathname)) {
+    // Habitat database: network first (auto-update), cache as fallback.
+    e.respondWith(fetch(req).then((res) => {
+      if (res.ok) caches.open(CACHE).then((c) => c.put(new Request(url.pathname), res.clone()));
+      return res;
+    }).catch(() => caches.match(req, { ignoreSearch: true })));
+  } else if (url.origin === self.location.origin) {
     // App shell: cache first, fall back to network and refresh cache.
     e.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req).then((res) => {
       if (res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
