@@ -1,5 +1,5 @@
 /* Offline app-shell cache + tile cache + Background Sync upload for Habitat 32. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v27';
+const CACHE = 'fp-shell-v28';
 const TILES = 'fp-tiles';
 const SHELL = [
   './', './index.html', './app.js', './i18n.js', './habitats.js', './sync-core.js', './manifest.webmanifest',
@@ -25,11 +25,17 @@ self.addEventListener('fetch', (e) => {
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: true })));
   } else if (url.origin === self.location.origin) {
-    // App shell: cache first, fall back to network and refresh cache.
-    e.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req).then((res) => {
-      if (res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
-      return res;
-    })));
+    // App shell: network first (so updates arrive on the next online start), cache fallback offline / after 4 s.
+    e.respondWith((async () => {
+      const cached = caches.match(req, { ignoreSearch: true });
+      try {
+        const res = await Promise.race([fetch(req), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))]);
+        if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        return res;
+      } catch (_) {
+        return (await cached) || fetch(req);
+      }
+    })());
   } else if (/tile\.openstreetmap\.org|arcgisonline\.com|tianditu\.gov\.cn/.test(url.host)) {
     // Map tiles: network first, fall back to whatever is cached.
     e.respondWith(fetch(req).then((res) => {
