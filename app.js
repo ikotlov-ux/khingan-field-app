@@ -136,7 +136,7 @@
   let firstFixCentered = false;
 
   // ---------- habitat database (generated habitats.js) ----------
-  const APP_VERSION = '32';
+  const APP_VERSION = '33';
   const DB = { regions: [], categories: [], classes: [], habitats: [], generated: '' };
   function loadDbObject(obj) {
     if (!obj || !Array.isArray(obj.classes)) return false;
@@ -620,6 +620,26 @@
   $('tokenGet').addEventListener('click', () => {
     window.open(`https://oauth.yandex.ru/authorize?response_type=token&client_id=${YD_CLIENT_ID}`, '_blank');
   });
+  let qrUrl = '';
+  function qrMessage() { return `${t('qr_msg')}\n${qrUrl}`; }
+  async function copyText(s) {
+    try { await navigator.clipboard.writeText(s); return true; } catch (_) {}
+    const ta = document.createElement('textarea'); ta.value = s; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
+    ta.remove(); return ok;
+  }
+  $('qrCopy').addEventListener('click', async () => {
+    const ok = await copyText(qrMessage());
+    $('qrCopy').textContent = ok ? t('qr_copied') : t('qr_copy_fail');
+    setTimeout(() => { $('qrCopy').textContent = t('qr_copy'); }, 2500);
+  });
+  $('qrShare').addEventListener('click', async () => {
+    if (navigator.share) { try { await navigator.share({ title: 'Habitat 32', text: t('qr_msg'), url: qrUrl }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    const ok = await copyText(qrMessage());
+    $('qrShare').textContent = ok ? t('qr_copied') : t('qr_copy_fail');
+    setTimeout(() => { $('qrShare').textContent = t('qr_share'); }, 2500);
+  });
   function showQr() {
     const q = [];
     if (ytoken) q.push('yt=' + encodeURIComponent(ytoken));
@@ -630,6 +650,7 @@
       $('qrBox').innerHTML = q.createSvgTag({ cellSize: 5, margin: 0, scalable: true });
       $('qrBox').firstChild.style.width = '260px'; $('qrBox').firstChild.style.height = '260px';
     } catch (e) { $('qrBox').textContent = String(e); }
+    qrUrl = url;
     $('qrLink').textContent = ytoken ? url.replace(/yt=.{6}[^&]*/, (m) => m.slice(0, 9) + '…') : url;
     $('syncDetails').open = !ytoken;
     $('qrModal').classList.remove('hidden');
