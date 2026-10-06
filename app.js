@@ -135,13 +135,59 @@
   let wakeLock = null;
   let firstFixCentered = false;
 
-  const classes = (window.HABITAT_CLASSES || []).slice();
-  const classById = new Map(classes.map((c) => [String(c.id), c]));
-  function className(p) {
-    const c = classById.get(String(p.class_id));
-    if (lang === 'zh') return p.class_zh || (c && c.zh) || p.class_en || '';
-    return p.class_ru || (c && c.ru) || p.class_en || '';
+  // ---------- habitat database (generated habitats.js) ----------
+  const DB = window.HABITAT_DB || { regions: [], categories: [], classes: [], habitats: [] };
+  const REGION_KEY = 'fp_region';
+  const catById = new Map(DB.categories.map((c) => [c.id, c]));
+  const classById = new Map(DB.classes.map((c) => [c.id, c]));
+  let region = localStorage.getItem(REGION_KEY) || '';
+  if (region && !DB.regions.some((r) => r.id === region)) region = '';
+  const regionById = (id) => DB.regions.find((r) => r.id === id);
+  const L = (o) => (o ? (lang === 'zh' && o.zh ? o.zh : o.ru) : '');
+  // habitat option: { value, class, type, label, rec } — class-level entries plus region types
+  function habitatOptions() {
+    const out = [];
+    for (const c of DB.classes) {
+      const rec = DB.habitats.find((h) => h.region === region && h.class === c.id && h.type == null) || null;
+      out.push({ value: `c${c.id}`, cls: c, type: null, rec });
+      for (const h of DB.habitats.filter((x) => x.region === region && x.class === c.id && x.type != null)) {
+        out.push({ value: `t${c.id}_${h.type}`, cls: c, type: h.type, rec: h });
+      }
+    }
+    return out;
   }
+  function habitatByValue(v) { return habitatOptions().find((o) => o.value === v) || null; }
+  function className(p) {
+    if (p.type_ru || p.type_zh) return (lang === 'zh' && p.type_zh) || p.type_ru || p.type_zh;
+    if (p.class_ru || p.class_zh) return (lang === 'zh' && p.class_zh) || p.class_ru || p.class_zh;
+    return p.class_en || '';
+  }
+  // region suggestion by coordinates (bbox from the regions sheet; nearest centre wins when boxes overlap)
+  function regionsAt(lon, lat) {
+    const hits = DB.regions.filter((r) => r.bbox && r.bbox.every((v) => v != null) && lon >= r.bbox[0] && lon <= r.bbox[2] && lat >= r.bbox[1] && lat <= r.bbox[3]);
+    hits.sort((p, q) => Math.hypot(lon - (p.bbox[0] + p.bbox[2]) / 2, lat - (p.bbox[1] + p.bbox[3]) / 2) - Math.hypot(lon - (q.bbox[0] + q.bbox[2]) / 2, lat - (q.bbox[1] + q.bbox[3]) / 2));
+    return hits;
+  }
+  let regionHintDismissed = sessionStorage.getItem('fp_region_dismiss') || '';
+  function suggestRegion(pos) {
+    const hits = regionsAt(pos.coords.longitude, pos.coords.latitude);
+    if (!hits.length) return;
+    const best = hits[0];
+    if (best.id === region) { $('regionHint').classList.add('hidden'); return; }
+    if (!region) { setRegion(best.id); setStatus(t('region_auto', { r: L(best) })); return; }
+    if (regionHintDismissed === best.id) return;
+    $('regionHintText').textContent = t('region_suggest', { r: L(best) });
+    $('regionHint').dataset.region = best.id;
+    $('regionHint').classList.remove('hidden');
+  }
+  function setRegion(id) {
+    region = id; localStorage.setItem(REGION_KEY, id);
+    $('region').value = id; $('regionHint').classList.add('hidden');
+    fillClasses();
+  }
+  $('regionYes').addEventListener('click', () => setRegion($('regionHint').dataset.region));
+  $('regionNo').addEventListener('click', () => { regionHintDismissed = $('regionHint').dataset.region; sessionStorage.setItem('fp_region_dismiss', regionHintDismissed); $('regionHint').classList.add('hidden'); });
+  $('region').addEventListener('change', () => setRegion($('region').value));
 
   // ---------- compass ----------
   const RUMBS = [
@@ -287,7 +333,7 @@
     if (!hit) { popupEl.classList.add('hidden'); return; }
     const p = hit.get('point');
     const nph = photos.filter((x) => x.point_id === p.id).length;
-    popupEl.innerHTML = `<b>#${p.id} · ${xmlEsc(p.class_code)}</b><br>${xmlEsc(className(p))}<br>${xmlEsc(p.time_local)}${p.description ? '<br><i>' + xmlEsc(p.description) + '</i>' : ''}${nph ? `<br>📷 ${nph}` : ''}`;
+    popupEl.innerHTML = `<b>#${p.id} · ${xmlEsc(habitatCode(p))}</b><br>${xmlEsc(className(p))}<br>${xmlEsc(p.time_local)}${p.description ? '<br><i>' + xmlEsc(p.description) + '</i>' : ''}${nph ? `<br>📷 ${nph}` : ''}`;
     $('photoPoint').value = String(p.id);
     refreshPhotoUi();
     popupEl.classList.remove('hidden');
@@ -304,7 +350,7 @@
     if (track.length >= 2) trackSource.addFeature(new ol.Feature(new ol.geom.LineString(track.map((v) => ol.proj.fromLonLat([v.longitude, v.latitude])))));
     $('trackStats').textContent = `${t('track_lbl')}: ${track.length}`;
   }
-  function pointLabel(p) { return `#${p.id} · ${p.class_code} · ${p.time_local}`; }
+  function pointLabel(p) { return `#${p.id} · ${habitatCode(p)} · ${p.time_local}`; }
   function refreshPhotoUi(selectId) {
     const sel = $('photoPoint');
     const prev = selectId != null ? String(selectId) : sel.value;
@@ -375,13 +421,14 @@
 
   // ---------- file builders ----------
   function fileBase() { return `${safeName(observer)}-${fileDate(new Date(day + 'T12:00:00'))}`; }
+  function habitatCode(p) { return p.type_id !== '' && p.type_id != null ? `${p.class_code}.${p.type_id}` : (p.class_code || ''); }
   function buildCsv() {
-    const header = ['observer', 'date_local', 'time_local', 'datetime_utc', 'class_code', 'class_id', 'class_ru', 'class_zh', 'class_en', 'description', 'latitude', 'longitude', 'altitude_m', 'accuracy_m', 'n_photos'];
+    const header = ['observer', 'date_local', 'time_local', 'datetime_utc', 'region_id', 'region_ru', 'category_id', 'category_ru', 'class_id', 'class_ru', 'class_zh', 'type_id', 'type_ru', 'type_zh', 'habitat_code', 'description', 'latitude', 'longitude', 'altitude_m', 'accuracy_m', 'n_photos'];
     const lines = [header.join(',')];
     for (const p of points) {
-      const c = classById.get(String(p.class_id)) || {};
       lines.push([
-        p.observer, p.date_local, p.time_local, p.datetime_utc, p.class_code, p.class_id, p.class_ru || c.ru || '', p.class_zh || c.zh || '', p.class_en || c.en || '', p.description,
+        p.observer, p.date_local, p.time_local, p.datetime_utc, p.region_id || '', p.region_ru || '', p.cat_id ?? '', p.cat_ru || '', p.class_id ?? '', p.class_ru || p.class_en || '', p.class_zh || '',
+        p.type_id ?? '', p.type_ru || '', p.type_zh || '', habitatCode(p), p.description,
         p.latitude.toFixed(7), p.longitude.toFixed(7), p.altitude_m == null ? '' : p.altitude_m.toFixed(1), p.accuracy_m == null ? '' : p.accuracy_m.toFixed(1),
         photos.filter((x) => x.point_id === p.id).length
       ].map(csvCell).join(','));
@@ -389,7 +436,7 @@
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
   }
   function buildPhotosCsv() {
-    const header = ['filename', 'observer', 'date_local', 'point_id', 'photo_seq', 'datetime_utc', 'latitude', 'longitude', 'altitude_m', 'accuracy_m', 'heading_deg_magnetic', 'rumb_en', 'rumb_ru', 'rumb_zh', 'class_code', 'class_ru', 'class_en'];
+    const header = ['filename', 'observer', 'date_local', 'point_id', 'photo_seq', 'datetime_utc', 'latitude', 'longitude', 'altitude_m', 'accuracy_m', 'heading_deg_magnetic', 'rumb_en', 'rumb_ru', 'rumb_zh', 'region_id', 'habitat_code', 'habitat_ru'];
     const lines = [header.join(',')];
     for (const ph of photos) {
       const p = points.find((x) => x.id === ph.point_id) || {};
@@ -398,7 +445,7 @@
         ph.latitude == null ? '' : ph.latitude.toFixed(7), ph.longitude == null ? '' : ph.longitude.toFixed(7),
         ph.altitude_m == null ? '' : ph.altitude_m.toFixed(1), ph.accuracy_m == null ? '' : ph.accuracy_m.toFixed(1),
         ph.heading_deg == null ? '' : ph.heading_deg.toFixed(1), ph.rumb_en || '', ph.rumb_ru || '', ph.rumb_zh || '',
-        p.class_code || '', p.class_ru || '', p.class_en || ''
+        p.region_id || '', habitatCode(p), p.type_ru || p.class_ru || p.class_en || ''
       ].map(csvCell).join(','));
     }
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
@@ -409,7 +456,7 @@
     for (const p of points) {
       s += `<wpt lat="${p.latitude.toFixed(7)}" lon="${p.longitude.toFixed(7)}">`;
       if (p.altitude_m != null) s += `<ele>${p.altitude_m.toFixed(1)}</ele>`;
-      s += `<time>${p.datetime_utc}</time><name>${xmlEsc(`#${p.id} ${p.class_code} ${p.class_ru || p.class_en || ''}`)}</name>`;
+      s += `<time>${p.datetime_utc}</time><name>${xmlEsc(`#${p.id} ${habitatCode(p)} ${p.type_ru || p.class_ru || p.class_en || ''}`)}</name>`;
       if (p.description) s += `<desc>${xmlEsc(p.description)}</desc>`;
       s += `</wpt>\n`;
     }
@@ -560,8 +607,10 @@
   if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.type === 'synced') { lastSync = e.data.at || Date.now(); showSync(); } });
 
   // ---------- geolocation / track ----------
+  let regionCheckAt = 0;
   function onFix(pos) {
     lastFix = pos;
+    if (Date.now() - regionCheckAt > 60000) { regionCheckAt = Date.now(); try { suggestRegion(pos); } catch (_) {} }
     const { latitude, longitude, accuracy } = pos.coords;
     $('lat').textContent = latitude.toFixed(6); $('lon').textContent = longitude.toFixed(6);
     const accTxt = accuracy != null ? `±${Math.round(accuracy)} m` : '';
@@ -678,32 +727,63 @@
   $('changeObserver').addEventListener('click', () => { setTracking(false); showObserverModal(); });
 
   // ---------- UI: class select ----------
+  function fillRegions() {
+    const sel = $('region'); sel.innerHTML = '';
+    for (const r of DB.regions) { const o = document.createElement('option'); o.value = r.id; o.textContent = L(r); sel.appendChild(o); }
+    if (!region) { const o = document.createElement('option'); o.value = ''; o.textContent = t('region_none'); o.disabled = true; o.selected = true; sel.insertBefore(o, sel.firstChild); }
+    else sel.value = region;
+  }
   function fillClasses() {
+    fillRegions();
     const sel = $('category');
     const cur = sel.value || localStorage.getItem('fp_last_class');
     sel.innerHTML = '';
-    let grp = null, grpEl = null;
-    for (const c of classes) {
-      const g = lang === 'zh' ? c.group_zh : c.group_ru;
-      if (g !== grp) { grp = g; grpEl = document.createElement('optgroup'); grpEl.label = g; sel.appendChild(grpEl); }
-      const o = document.createElement('option'); o.value = String(c.id);
-      o.textContent = `${c.id} — ${lang === 'zh' ? c.zh : c.ru}`;
-      grpEl.appendChild(o);
+    let grpCat = null, grpEl = null;
+    for (const o of habitatOptions()) {
+      const cat = catById.get(o.cls.cat);
+      if (cat !== grpCat) { grpCat = cat; grpEl = document.createElement('optgroup'); grpEl.label = cat ? `${cat.id}. ${L(cat)}` : '—'; sel.appendChild(grpEl); }
+      const el = document.createElement('option'); el.value = o.value;
+      el.textContent = o.type == null ? `${o.cls.id} — ${L(o.cls)}${o.rec ? ' •' : ''}` : `\u2003↳ ${o.cls.id}.${o.type} ${L(o.rec)}`;
+      grpEl.appendChild(el);
     }
-    if (cur && classById.has(cur)) sel.value = cur;
+    if (cur && habitatByValue(cur)) sel.value = cur;
+    showHabitatInfo();
   }
-  $('category').addEventListener('change', () => localStorage.setItem('fp_last_class', $('category').value));
+  function showHabitatInfo() {
+    const o = habitatByValue($('category').value);
+    const box = $('habInfo'), txt = $('habInfoText');
+    if (!o) { box.classList.add('hidden'); return; }
+    const cat = catById.get(o.cls.cat);
+    const parts = [];
+    if (cat && cat.def_ru && lang === 'ru') parts.push(`${cat.ru}: ${cat.def_ru}`);
+    if (o.rec) {
+      const meta = [];
+      if (o.rec.area_ha != null) meta.push(`${t('area')}: ${Math.round(o.rec.area_ha).toLocaleString('ru-RU')} ${t('ha')}`);
+      if (o.rec.share_pct != null) meta.push(`${o.rec.share_pct.toLocaleString('ru-RU')} %`);
+      if (meta.length) parts.push(meta.join(' · '));
+      if (o.rec.community) parts.push(o.rec.community);
+      if (o.rec.source) parts.push(`${t('source')}: ${o.rec.source}`);
+    }
+    if (!parts.length) { box.classList.add('hidden'); return; }
+    txt.innerHTML = parts.map((s) => `<p>${xmlEsc(s)}</p>`).join('');
+    box.classList.remove('hidden');
+  }
+  $('category').addEventListener('change', () => { localStorage.setItem('fp_last_class', $('category').value); showHabitatInfo(); });
 
   // ---------- UI: record point ----------
   $('record').disabled = true;
   $('record').addEventListener('click', async () => {
     if (!lastFix) { setStatus(t('no_gps'), true); return; }
     const c = lastFix.coords;
-    const cls = classById.get($('category').value);
+    const o = habitatByValue($('category').value);
+    const cls = o ? o.cls : null, cat = cls ? catById.get(cls.cat) : null, rg = regionById(region);
     const now = new Date();
     const p = {
       observer, date_local: todayKey(now), time_local: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`, datetime_utc: now.toISOString(),
-      class_code: cls ? cls.code : '', class_id: cls ? cls.id : '', class_en: cls ? cls.en : '', class_ru: cls ? cls.ru : '', class_zh: cls ? cls.zh : '',
+      region_id: region || '', region_ru: rg ? rg.ru : '', region_zh: rg ? rg.zh : '',
+      cat_id: cat ? cat.id : '', cat_ru: cat ? cat.ru : '', cat_zh: cat ? cat.zh : '',
+      class_code: cls ? String(cls.id) : '', class_id: cls ? cls.id : '', class_ru: cls ? cls.ru : '', class_zh: cls ? cls.zh : '',
+      type_id: o && o.type != null ? o.type : '', type_ru: o && o.type != null ? o.rec.ru : '', type_zh: o && o.type != null ? o.rec.zh : '',
       description: $('note').value.trim(),
       latitude: c.latitude, longitude: c.longitude, altitude_m: c.altitude == null ? null : c.altitude, accuracy_m: c.accuracy == null ? null : c.accuracy
     };
@@ -715,7 +795,7 @@
     markDirty('data');
     vibrate(60);
     $('note').value = '';
-    setStatus(t('saved_point', { id: p.id, code: p.class_code, t: p.time_local, acc: Math.round(p.accuracy_m || 0) }));
+    setStatus(t('saved_point', { id: p.id, code: p.type_id !== '' ? `${p.class_code}.${p.type_id}` : p.class_code, t: p.time_local, acc: Math.round(p.accuracy_m || 0) }));
   });
 
   $('clearToday').addEventListener('click', async () => {
@@ -760,7 +840,7 @@
     const lines = [
       `${info.filename}  ·  ${info.datetime_local}`,
       `${info.latitude != null ? info.latitude.toFixed(6) + ', ' + info.longitude.toFixed(6) : 'no GPS'}${info.accuracy_m != null ? ' ±' + Math.round(info.accuracy_m) + ' m' : ''}${info.altitude_m != null ? '  h ' + Math.round(info.altitude_m) + ' m' : ''}`,
-      `${info.heading_deg != null ? 'Az ' + Math.round(info.heading_deg) + '° ' + info.rumb_en + ' · ' + info.rumb_ru + ' · ' + info.rumb_zh + ' (magn.)' : 'Az: n/a'}  ·  ${info.class_code} ${info.class_ru || info.class_en}`
+      `${info.heading_deg != null ? 'Az ' + Math.round(info.heading_deg) + '° ' + info.rumb_en + ' · ' + info.rumb_ru + ' · ' + info.rumb_zh + ' (magn.)' : 'Az: n/a'}  ·  ${info.class_code} ${info.class_ru}`
     ];
     const pd = Math.round(fs * 0.5), bh = lines.length * (fs * 1.3) + pd * 2;
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, h - bh, w, bh);
@@ -775,7 +855,7 @@
       const zeroth = {}, exif = {}, gps = {};
       zeroth[piexif.ImageIFD.Make] = 'Habitat 32'; zeroth[piexif.ImageIFD.Software] = 'Habitat 32 PWA';
       zeroth[piexif.ImageIFD.Artist] = info.observer; zeroth[piexif.ImageIFD.Copyright] = `(c) ${d.getFullYear()} I. P. Kotlov, IEE RAS`;
-      zeroth[piexif.ImageIFD.ImageDescription] = `Point #${info.point_id} ${info.class_code} ${info.class_en}; heading ${info.heading_deg != null ? Math.round(info.heading_deg) + ' deg ' + info.rumb_en : 'n/a'}`;
+      zeroth[piexif.ImageIFD.ImageDescription] = `Point #${info.point_id} ${info.class_code} ${info.class_ru}; heading ${info.heading_deg != null ? Math.round(info.heading_deg) + ' deg ' + info.rumb_en : 'n/a'}`;
       zeroth[piexif.ImageIFD.Orientation] = 1;
       exif[piexif.ExifIFD.DateTimeOriginal] = exifDate; exif[piexif.ExifIFD.DateTimeDigitized] = exifDate; exif[piexif.ExifIFD.UserComment] = info.filename;
       if (info.latitude != null) {
@@ -812,11 +892,11 @@
       latitude: c ? c.latitude : (p.latitude ?? null), longitude: c ? c.longitude : (p.longitude ?? null),
       altitude_m: c && c.altitude != null ? c.altitude : null, accuracy_m: c && c.accuracy != null ? c.accuracy : null,
       heading_deg: h, rumb_en: r ? r.en : '', rumb_ru: r ? r.ru : '', rumb_zh: r ? r.zh : '',
-      class_code: p.class_code, class_en: p.class_en, class_ru: p.class_ru || ''
+      class_code: habitatCode(p), class_ru: p.type_ru || p.class_ru || p.class_en || ''
     };
     const blob = dataUrlToBlob(addExif(stampAndEncode(source, sw, sh, info), info));
     const rec = Object.assign({}, info, { blob });
-    delete rec.datetime_local; delete rec.class_code; delete rec.class_en; delete rec.class_ru;
+    delete rec.datetime_local; delete rec.class_code; delete rec.class_ru;
     rec.id = await dbAdd('photos', rec);
     photos.push(rec);
     vibrate(40);

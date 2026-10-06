@@ -22,6 +22,8 @@ body{margin:0;padding:12px 12px 92px;background:var(--bg);color:var(--text);font
 h1{font-size:18px;margin:0;text-align:center}
 .qrtop{left:0;right:auto}
 .langbtn{position:absolute;right:0;top:-2px;border:1px solid #38503e;border-radius:10px;background:#0f1912;color:#fff;font-size:13px;font-weight:700;padding:6px 10px}
+.hint{background:#263a2b;border:1px solid #4d7a55;border-radius:10px;padding:10px;margin-bottom:10px;font-size:14px}.hint .row{margin-top:8px}
+#habInfoText p{margin:4px 0;color:var(--muted)}
 .footer{color:var(--muted);font-size:11px;line-height:1.4;text-align:center;padding:4px 6px 0}.footer a{color:#a2b5a6}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
 .mapwrap{position:relative}
@@ -151,7 +153,10 @@ details summary::before{content:'▸ ';color:var(--muted)}details[open] summary:
 </div>
 
 <div class="card">
- <label data-i18n="class_lbl"></label><select id="category"></select>
+ <div id="regionHint" class="hint hidden"><span id="regionHintText"></span><span class="row gap"><button id="regionYes" class="btn primary" data-i18n="region_yes"></button><button id="regionNo" class="btn" data-i18n="region_no"></button></span></div>
+ <label data-i18n="region_lbl"></label><select id="region"></select>
+ <label class="gap" data-i18n="class_lbl"></label><select id="category"></select>
+ <details id="habInfo" class="hidden gap"><summary class="tiny" data-i18n="hab_info"></summary><div id="habInfoText" class="tiny"></div></details>
  <label class="gap" data-i18n="desc_lbl"></label><input id="note" data-i18n-ph="desc_ph">
 </div>
 
@@ -196,6 +201,6 @@ details summary::before{content:'▸ ';color:var(--muted)}details[open] summary:
 <div class="footer"><span data-i18n="footer"></span> · <a href="https://github.com/ikotlov-ux/khingan-field-app" data-i18n="source"></a></div>
 
 <div class="bar"><button id="share" class="btn primary" style="margin:0;padding:14px" data-i18n="share"></button></div>
-<script src="i18n.js"></script><script src="classes.js"></script><script src="sync-core.js"></script><script src="app.js"></script>
+<script src="i18n.js"></script><script src="habitats.js"></script><script src="sync-core.js"></script><script src="app.js"></script>
 </body>
 </html>

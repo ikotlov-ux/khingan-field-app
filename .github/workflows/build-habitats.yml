@@ -1,0 +1,35 @@
+name: Build habitats
+on:
+  push:
+    paths: ['data/habitat_db.xlsx', 'tools/build_habitats.py']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install openpyxl
+      - run: python tools/build_habitats.py data/habitat_db.xlsx habitats.js
+      - name: Bump service-worker cache version
+        run: |
+          python - <<'PY'
+          import re, pathlib
+          p = pathlib.Path('sw.js'); s = p.read_text(encoding='utf-8')
+          s = re.sub(r"fp-shell-v(\d+)", lambda m: f"fp-shell-v{int(m.group(1)) + 1}", s, count=1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add habitats.js sw.js
+          git diff --cached --quiet || git commit -m "Rebuild habitats.js from data/habitat_db.xlsx [skip ci]"
+          git push
+      - name: Request GitHub Pages build
+        run: gh api -X POST repos/${{ github.repository }}/pages/builds || true
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }

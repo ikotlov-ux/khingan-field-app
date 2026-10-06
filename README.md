@@ -8,7 +8,7 @@ Live app: https://ikotlov-ux.github.io/khingan-field-app/
 
 1. On every launch, select an observer: **Kotlov, Yachmennikova, Rozhnov, Zhu, Aristarkhova, Rodnikova, Ogurtsov, Sandlersky**, or enter another surname.
 2. The app loads and displays only today's points and track for that observer.
-3. Select a habitat class and tap **Record point**.
+3. Select the region (suggested automatically from the GPS position), then a habitat class or regional type, and tap **Record point**.
 4. The date/time, observer, WGS 84 coordinates, altitude and GPS accuracy are recorded automatically.
 5. The track runs continuously while **Stop track** is visible. A vertex is saved when at least 5 seconds or 5 metres separate it from the previous vertex.
 6. Take photos attached to the current point with **Photo**.
@@ -17,6 +17,18 @@ Live app: https://ikotlov-ux.github.io/khingan-field-app/
 ## Header
 
 Institute logo (IEE RAS) on the left, laboratory name in the middle, laboratory logo on the right. To add the laboratory logo, upload a square image named **`lab-logo.png`** to the repository root — no code changes needed (the slot stays hidden until the file exists).
+
+## Regions and habitat database
+
+Habitat typology follows the Russian classification of hunting-resource habitats: 13 **categories** (B) → 39 **classes** (D) → regional **types / characteristic communities** (G). The data live in `data/habitat_db.xlsx`:
+
+- `regions` — region id, RU/ZH/EN names, country, bounding box (lon/lat) used to suggest the region from the GPS fix;
+- `categories`, `classes` — the fixed typology with Chinese names;
+- `habitats` — a matrix: one row per class, optional sub-rows for regional types; per region a block of six columns (type name RU, type name ZH, area ha, share %, characteristic community / geobotanical description, source).
+
+Edit the workbook on a PC and push it to the repository (GitHub web UI: *Add file → Upload files* into `data/`). The *Build habitats* Action regenerates `habitats.js`, bumps the service-worker cache and triggers a Pages build; phones pick up the new list at the next online start. The build fails with a clear message if a region header or class id does not match the reference sheets. Locally: `pip install openpyxl && python tools/build_habitats.py`.
+
+In the app the region selector sits above the class list; the first GPS fix selects the region automatically if none is chosen, and later a banner offers to switch when the position falls into another region's box. The class list is grouped by category; classes with regional data are marked with •, regional types are indented under their class (`12.1`, `12.2`, …). A collapsible panel shows the category definition, area and share in the region, the characteristic community and the source. Points store region, category, class and type; `habitat_code` in CSV/GPX is `class` or `class.type` (e.g. `14` or `12.1`).
 
 ## Interface language
 
@@ -87,7 +99,7 @@ The user interface and libraries are cached after the first successful HTTPS loa
 
 - `index.html` — bilingual mobile UI
 - `app.js` — OpenLayers map, basemaps, geolocation, IndexedDB/OPFS storage, CSV/GPX/ZIP export and sharing
-- `classes.js` — 29 habitat classes (code, id, EN, RU, ZH) from the workbook `classes` sheet
+- `data/habitat_db.xlsx` — editable habitat database (regions, categories, classes, regional types); `tools/build_habitats.py` converts it to `habitats.js` (run automatically by the *Build habitats* GitHub Action when the workbook is pushed)
 - `i18n.js` — Russian / Chinese UI strings; `sync-core.js` — Yandex Disk upload core shared by the page and the service worker
 - `vendor/` — local OpenLayers 10.6.1, JSZip 3.10.1, piexifjs 1.0.6 (EXIF writer)
 - `sw.js` — offline app-shell cache
