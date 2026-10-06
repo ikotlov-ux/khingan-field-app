@@ -136,7 +136,7 @@
   let firstFixCentered = false;
 
   // ---------- habitat database (generated habitats.js) ----------
-  const APP_VERSION = '26';
+  const APP_VERSION = '27';
   const DB = { regions: [], categories: [], classes: [], habitats: [], generated: '' };
   function loadDbObject(obj) {
     if (!obj || !Array.isArray(obj.classes)) return false;
