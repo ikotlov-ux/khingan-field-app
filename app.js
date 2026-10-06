@@ -147,13 +147,16 @@
   // habitat option: { value, class, type, label, rec } — class-level entries plus region types
   function habitatOptions() {
     const out = [];
+    // Only what is described for the selected region: a class appears if its class row has data
+    // in this region and/or it has regional types; everything else is hidden.
     for (const c of DB.classes) {
       const rec = DB.habitats.find((h) => h.region === region && h.class === c.id && h.type == null) || null;
-      out.push({ value: `c${c.id}`, cls: c, type: null, rec });
-      for (const h of DB.habitats.filter((x) => x.region === region && x.class === c.id && x.type != null)) {
-        out.push({ value: `t${c.id}_${h.type}`, cls: c, type: h.type, rec: h });
-      }
+      const types = DB.habitats.filter((x) => x.region === region && x.class === c.id && x.type != null);
+      if (!rec && !types.length) continue;
+      if (rec) out.push({ value: `c${c.id}`, cls: c, type: null, rec });
+      for (const h of types) out.push({ value: `t${c.id}_${h.type}`, cls: c, type: h.type, rec: h });
     }
+    out.push({ value: 'c0', cls: { id: 0, cat: 0, ru: t('hab_other'), zh: t('hab_other') }, type: null, rec: null, other: true });
     return out;
   }
   function habitatByValue(v) { return habitatOptions().find((o) => o.value === v) || null; }
@@ -741,18 +744,20 @@
     let grpCat = null, grpEl = null;
     for (const o of habitatOptions()) {
       const cat = catById.get(o.cls.cat);
+      if (o.other) { const el = document.createElement('option'); el.value = o.value; el.textContent = t('hab_other'); sel.appendChild(el); continue; }
       if (cat !== grpCat) { grpCat = cat; grpEl = document.createElement('optgroup'); grpEl.label = cat ? `${cat.id}. ${L(cat)}` : '—'; sel.appendChild(grpEl); }
       const el = document.createElement('option'); el.value = o.value;
-      el.textContent = o.type == null ? `${o.cls.id} — ${L(o.cls)}${o.rec ? ' •' : ''}` : `\u2003↳ ${o.cls.id}.${o.type} ${L(o.rec)}`;
+      el.textContent = o.type == null ? `${o.cls.id} — ${L(o.cls)}` : `\u2003↳ ${o.cls.id}.${o.type} ${L(o.rec)}`;
       grpEl.appendChild(el);
     }
     if (cur && habitatByValue(cur)) sel.value = cur;
+    $('regionEmpty').classList.toggle('hidden', !region || habitatOptions().length > 1);
     showHabitatInfo();
   }
   function showHabitatInfo() {
     const o = habitatByValue($('category').value);
     const box = $('habInfo'), txt = $('habInfoText');
-    if (!o) { box.classList.add('hidden'); return; }
+    if (!o || o.other) { box.classList.add('hidden'); return; }
     const cat = catById.get(o.cls.cat);
     const parts = [];
     if (cat && cat.def_ru && lang === 'ru') parts.push(`${cat.ru}: ${cat.def_ru}`);
@@ -776,14 +781,14 @@
     if (!lastFix) { setStatus(t('no_gps'), true); return; }
     const c = lastFix.coords;
     const o = habitatByValue($('category').value);
-    const cls = o ? o.cls : null, cat = cls ? catById.get(cls.cat) : null, rg = regionById(region);
+    const cls = o && !o.other ? o.cls : null, cat = cls ? catById.get(cls.cat) : null, rg = regionById(region);
     const now = new Date();
     const p = {
       observer, date_local: todayKey(now), time_local: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`, datetime_utc: now.toISOString(),
       region_id: region || '', region_ru: rg ? rg.ru : '', region_zh: rg ? rg.zh : '',
       cat_id: cat ? cat.id : '', cat_ru: cat ? cat.ru : '', cat_zh: cat ? cat.zh : '',
       class_code: cls ? String(cls.id) : '', class_id: cls ? cls.id : '', class_ru: cls ? cls.ru : '', class_zh: cls ? cls.zh : '',
-      type_id: o && o.type != null ? o.type : '', type_ru: o && o.type != null ? o.rec.ru : '', type_zh: o && o.type != null ? o.rec.zh : '',
+      type_id: o && o.type != null ? o.type : '', type_ru: o && o.type != null ? o.rec.ru : (o && o.other ? t('hab_other') : ''), type_zh: o && o.type != null ? o.rec.zh : '',
       description: $('note').value.trim(),
       latitude: c.latitude, longitude: c.longitude, altitude_m: c.altitude == null ? null : c.altitude, accuracy_m: c.accuracy == null ? null : c.accuracy
     };
