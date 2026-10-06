@@ -741,13 +741,15 @@
     const sel = $('category');
     const cur = sel.value || localStorage.getItem('fp_last_class');
     sel.innerHTML = '';
-    let grpCat = null, grpEl = null;
+    // Groups = category › class; options = type names ("Название типа" column; class name if the cell is empty)
+    let grpCls = null, grpEl = null;
     for (const o of habitatOptions()) {
-      const cat = catById.get(o.cls.cat);
       if (o.other) { const el = document.createElement('option'); el.value = o.value; el.textContent = t('hab_other'); sel.appendChild(el); continue; }
-      if (cat !== grpCat) { grpCat = cat; grpEl = document.createElement('optgroup'); grpEl.label = cat ? `${cat.id}. ${L(cat)}` : '—'; sel.appendChild(grpEl); }
+      const cat = catById.get(o.cls.cat);
+      if (o.cls !== grpCls) { grpCls = o.cls; grpEl = document.createElement('optgroup'); grpEl.label = `${cat ? cat.id + '. ' + L(cat) : '—'} › ${o.cls.id} ${L(o.cls)}`; sel.appendChild(grpEl); }
       const el = document.createElement('option'); el.value = o.value;
-      el.textContent = o.type == null ? `${o.cls.id} — ${L(o.cls)}` : `\u2003↳ ${o.cls.id}.${o.type} ${L(o.rec)}`;
+      const nm = (o.rec && (lang === 'zh' ? (o.rec.zh || o.rec.ru) : (o.rec.ru || o.rec.zh))) || L(o.cls);
+      el.textContent = o.type == null ? `${o.cls.id} ${nm}` : `${o.cls.id}.${o.type} ${nm}`;
       grpEl.appendChild(el);
     }
     if (cur && habitatByValue(cur)) sel.value = cur;
@@ -788,7 +790,7 @@
       region_id: region || '', region_ru: rg ? rg.ru : '', region_zh: rg ? rg.zh : '',
       cat_id: cat ? cat.id : '', cat_ru: cat ? cat.ru : '', cat_zh: cat ? cat.zh : '',
       class_code: cls ? String(cls.id) : '', class_id: cls ? cls.id : '', class_ru: cls ? cls.ru : '', class_zh: cls ? cls.zh : '',
-      type_id: o && o.type != null ? o.type : '', type_ru: o && o.type != null ? o.rec.ru : (o && o.other ? t('hab_other') : ''), type_zh: o && o.type != null ? o.rec.zh : '',
+      type_id: o && o.type != null ? o.type : '', type_ru: o && o.rec ? (o.rec.ru || '') : (o && o.other ? t('hab_other') : ''), type_zh: o && o.rec ? (o.rec.zh || '') : '',
       description: $('note').value.trim(),
       latitude: c.latitude, longitude: c.longitude, altitude_m: c.altitude == null ? null : c.altitude, accuracy_m: c.accuracy == null ? null : c.accuracy
     };
