@@ -6,7 +6,7 @@ Live app: https://ikotlov-ux.github.io/khingan-field-app/
 
 ## Daily workflow
 
-1. On every launch, select an observer: **Kotlov, Yachmennikova, Rozhnov, Zhu, Aristarkhova, Rodnikova, Ogurtsov, Sandlersky**, or enter another surname.
+1. On every launch, select an observer: **Kotlov, Yachmennikova, Rozhnov, Zhu, Aristarkhova, Rodnikova, Ogurtsov, Sandlersky, Fomin**, or enter another surname.
 2. The app loads and displays only today's points and track for that observer.
 3. Select the region (suggested automatically from the GPS position), then a habitat class or regional type, and tap **Record point**.
 4. The date/time, observer, WGS 84 coordinates, altitude and GPS accuracy are recorded automatically.
