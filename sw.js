@@ -1,5 +1,5 @@
 /* Offline app-shell cache + tile cache + Background Sync upload for Habitat 32. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v22';
+const CACHE = 'fp-shell-v23';
 const TILES = 'fp-tiles';
 const SHELL = [
   './', './index.html', './app.js', './i18n.js', './habitats.js', './sync-core.js', './manifest.webmanifest',
