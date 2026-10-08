@@ -1,5 +1,5 @@
 /* Offline app-shell cache + tile cache + Background Sync upload for Habitat 32. Bump CACHE on every release. */
-const CACHE = 'fp-shell-v35';
+const CACHE = 'fp-shell-v36';
 const TILES = 'fp-tiles';
 const SHELL = [
   './', './index.html', './app.js', './i18n.js', './habitats.js', './sync-core.js', './manifest.webmanifest',
@@ -37,7 +37,7 @@ self.addEventListener('fetch', (e) => {
         return (await cached) || fetch(req);
       }
     })());
-  } else if (/tile\.openstreetmap\.org|arcgisonline\.com|tianditu\.gov\.cn|terrascope\.be/.test(url.host)) {
+  } else if (/tile\.openstreetmap\.org|arcgisonline\.com|tianditu\.gov\.cn|imagery1\.arcgis\.com|planetarycomputer\.microsoft\.com|gibs\.earthdata\.nasa\.gov/.test(url.host)) {
     // Map tiles: network first, fall back to whatever is cached (opaque responses from non-CORS servers are cached too).
     e.respondWith(fetch(req).then((res) => {
       if (res.ok || res.type === 'opaque') { const copy = res.clone(); caches.open(TILES).then((c) => c.put(req, copy)); }

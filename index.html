@@ -28,7 +28,7 @@ h1{font-size:18px;margin:0;text-align:center}
 .lcpanel .lchead{display:flex;align-items:center;justify-content:space-between;gap:6px}.lcpanel .lchead button{border:0;background:transparent;color:#fff;font-size:14px;padding:0 4px}
 .lcpanel .lcop{display:flex;align-items:center;gap:6px;margin:5px 0;color:var(--muted)}.lcpanel .lcop input{width:90px;padding:0;height:18px}
 #lcLegend div{display:flex;align-items:center;gap:6px;margin:2px 0;line-height:1.2}#lcLegend i{flex:none;width:12px;height:12px;border-radius:2px;border:1px solid rgba(255,255,255,.35)}
-#lcLegend.collapsed{display:none}.lcstate{color:#f7b267;margin-top:3px}.lcstate:empty{display:none}
+#lcLegend{max-height:38vh;overflow:auto}#lcLegend.collapsed{display:none}.lcmenu{top:218px}.lcpanel .lcyear{margin-top:5px;padding:2px 4px;font-size:12px;width:auto;height:auto;min-height:0}.lcstate{color:#f7b267;margin-top:3px}.lcstate:empty{display:none}
 .footer{color:var(--muted);font-size:11px;line-height:1.4;text-align:center;padding:4px 6px 0}.footer a{color:#a2b5a6}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
 .mapwrap{position:relative}
@@ -160,10 +160,17 @@ details summary::before{content:'▸ ';color:var(--muted)}details[open] summary:
    <button id="lcToggle" class="mb small" data-i18n-title="lc_title">LC</button>
   </div>
   <div id="lcPanel" class="lcpanel hidden">
-   <div class="lchead"><b data-i18n="lc_name"></b><button id="lcLegendToggle" type="button">▾</button></div>
+   <div class="lchead"><b id="lcTitle"></b><button id="lcLegendToggle" type="button">▾</button></div>
+   <select id="lcYear" class="lcyear hidden"></select>
    <label class="lcop"><span data-i18n="lc_opacity"></span> <input id="lcOpacity" type="range" min="10" max="100" step="10" value="60"></label>
    <div id="lcLegend"></div>
    <div id="lcState" class="lcstate"></div>
+  </div>
+  <div id="lcMenu" class="basemenu lcmenu hidden">
+   <button data-lc="off" data-i18n="lc_off"></button>
+   <button data-lc="wc">ESA WorldCover 2021 · 10 m</button>
+   <button data-lc="esri">Esri Land Cover · 10 m</button>
+   <button data-lc="modis">MODIS IGBP · 500 m</button>
   </div>
   <div id="baseMenu" class="basemenu hidden">
    <button data-bm="osm" data-i18n="bm_osm"></button>

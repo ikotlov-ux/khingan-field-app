@@ -136,7 +136,7 @@
   let firstFixCentered = false;
 
   // ---------- habitat database (generated habitats.js) ----------
-  const APP_VERSION = '35';
+  const APP_VERSION = '36';
   const DB = { regions: [], categories: [], classes: [], habitats: [], generated: '' };
   function loadDbObject(obj) {
     if (!obj || !Array.isArray(obj.classes)) return false;
@@ -333,33 +333,81 @@
   const tdtCvaLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('cva_w') });   // labels for the vector map
   const tdtImgLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('img_w') });
   const tdtCiaLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('cia_w') });   // labels for imagery
-  // ESA WorldCover 2021 (10 m) overlay from the official Terrascope WMTS (EPSG:3857 tile matrix set, rendered with the official palette)
-  const LC_URL = (z, x, y) => `https://services.terrascope.be/wmts/v2?layer=WORLDCOVER_2021_MAP&style=&tilematrixset=EPSG:3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=EPSG:3857:${z}&TileCol=${x}&TileRow=${y}`;
-  const LC_CLASSES = [
-    [10, '#006400', 'Древесный покров', '林地'], [20, '#ffbb22', 'Кустарники', '灌丛'], [30, '#ffff4c', 'Травянистая растительность', '草地'],
-    [40, '#f096ff', 'Пашни', '耕地'], [50, '#fa0000', 'Застройка', '建设用地'], [60, '#b4b4b4', 'Голые / редкая растительность', '裸地/稀疏植被'],
-    [70, '#f0f0f0', 'Снег и лёд', '冰雪'], [80, '#0064c8', 'Постоянные водоёмы', '永久水体'], [90, '#0096a0', 'Травяные водно-болотные', '草本湿地'],
-    [95, '#00cf75', 'Мангры', '红树林'], [100, '#fae6a0', 'Мхи и лишайники', '苔藓与地衣']
-  ];
-  const lcSource = new ol.source.XYZ({
-    tileUrlFunction: (tc) => LC_URL(tc[0], tc[1], tc[2]), maxZoom: 18,
-    attributions: '© ESA WorldCover 2021 (Copernicus Sentinel data)'
-  });
-  let lcOn = localStorage.getItem('fp_lc') === '1';
+  // Land-cover overlays streamed on the fly (each server renders its own official palette)
+  const PC_WC2021 = '940d56fc80d1d9dc292442a5ab8bcfee'; // Planetary Computer mosaic: esa-worldcover, datetime 2021
+  const LC_DEFS = {
+    wc: { name: 'ESA WorldCover 2021, 10 m', minZoom: 8, years: null,
+      attr: '© ESA WorldCover 2021 (Copernicus Sentinel data) · Microsoft Planetary Computer',
+      url: (z, x, y) => `https://planetarycomputer.microsoft.com/api/data/v1/mosaic/${PC_WC2021}/tiles/WebMercatorQuad/${z}/${x}/${y}@1x.png?collection=esa-worldcover&assets=map&colormap_name=esa-worldcover`,
+      legend: [[10, '#006400', 'Древесный покров', '林地'], [20, '#ffbb22', 'Кустарники', '灌丛'], [30, '#ffff4c', 'Травянистая растительность', '草地'],
+        [40, '#f096ff', 'Пашни', '耕地'], [50, '#fa0000', 'Застройка', '建设用地'], [60, '#b4b4b4', 'Голые / редкая растительность', '裸地/稀疏植被'],
+        [70, '#f0f0f0', 'Снег и лёд', '冰雪'], [80, '#0064c8', 'Постоянные водоёмы', '永久水体'], [90, '#0096a0', 'Травяные водно-болотные', '草本湿地'],
+        [95, '#00cf75', 'Мангры', '红树林'], [100, '#fae6a0', 'Мхи и лишайники', '苔藓与地衣']] },
+    esri: { name: 'Esri Sentinel-2 Land Cover, 10 m', minZoom: 0, years: [2017, 2025], defYear: 2025,
+      attr: '© Esri, Impact Observatory, Microsoft (Sentinel-2 10 m Land Cover)',
+      url: null,
+      legend: [[1, '#1a5bab', 'Вода', '水体'], [2, '#358221', 'Деревья', '树木'], [4, '#87d19e', 'Затопляемая растительность', '淹没植被'],
+        [5, '#ffdb5c', 'Пашни', '耕地'], [7, '#ed022a', 'Застройка', '建设用地'], [8, '#ede9e4', 'Голые земли', '裸地'],
+        [9, '#f2faff', 'Снег и лёд', '冰雪'], [10, '#c8c8c8', 'Облака', '云'], [11, '#efcfa8', 'Луга и пастбища', '草地/牧场']] },
+    modis: { name: 'MODIS MCD12Q1 IGBP, 500 m', minZoom: 0, maxNative: 8, years: [2001, 2024], defYear: 2024,
+      attr: 'NASA GIBS / MODIS MCD12Q1',
+      url: (z, x, y, yr) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Combined_L3_IGBP_Land_Cover_Type_Annual/default/${yr}-01-01/GoogleMapsCompatible_Level8/${z}/${y}/${x}.png`,
+      legend: [[1, '#218a21', 'Вечнозелёные хвойные леса', '常绿针叶林'], [2, '#31cc31', 'Вечнозелёные широколиственные леса', '常绿阔叶林'],
+        [3, '#98cc31', 'Листопадные хвойные леса', '落叶针叶林'], [4, '#96fa96', 'Листопадные широколиственные леса', '落叶阔叶林'],
+        [5, '#8dba8d', 'Смешанные леса', '混交林'], [6, '#ba8d8d', 'Сомкнутые кустарники', '郁闭灌丛'], [7, '#f5deb3', 'Разреженные кустарники', '稀疏灌丛'],
+        [8, '#daeb9d', 'Лесистые саванны', '木本稀树草原'], [9, '#ffd500', 'Саванны', '稀树草原'], [10, '#f0b967', 'Травяные сообщества', '草地'],
+        [11, '#4783b5', 'Постоянные водно-болотные угодья', '永久湿地'], [12, '#faef73', 'Пашни', '耕地'], [13, '#ff0000', 'Застройка', '城市和建设用地'],
+        [14, '#999356', 'Мозаика пашен и естественной растительности', '耕地/自然植被镶嵌'], [15, '#ffffff', 'Постоянные снег и лёд', '永久冰雪'],
+        [16, '#bfbfbd', 'Бесплодные земли', '裸地'], [17, '#86cae3', 'Водоёмы', '水体']] }
+  };
+  const esriGrid = ol.tilegrid.createXYZ({ maxZoom: 19 });
+  function esriUrl(tc, yr) {
+    const ex = esriGrid.getTileCoordExtent(tc);
+    const a = Date.UTC(yr, 0, 1), b = Date.UTC(yr, 11, 31, 23, 59, 59);
+    return `https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/exportImage?bbox=${ex.map((v) => v.toFixed(2)).join(',')}&bboxSR=3857&imageSR=3857&size=256,256&format=png&transparent=true&time=${a},${b}&f=image`;
+  }
+  let lcMode = localStorage.getItem('fp_lc'); if (lcMode === '1') lcMode = 'wc'; if (!LC_DEFS[lcMode]) lcMode = 'off';
   let lcOpacity = Number(localStorage.getItem('fp_lc_op') || 60);
-  const lcLayer = new ol.layer.Tile({ visible: lcOn, opacity: lcOpacity / 100, source: lcSource });
+  const lcYear = (id) => Number(localStorage.getItem('fp_lc_year_' + id) || LC_DEFS[id].defYear);
+  const lcLayer = new ol.layer.Tile({ visible: false, opacity: lcOpacity / 100 });
   let lcErr = 0, lcOk = 0;
-  lcSource.on('tileloaderror', () => { lcErr++; showLcState(); });
-  lcSource.on('tileloadend', () => { lcOk++; showLcState(); });
-  function showLcState() { $('lcState').textContent = lcOn && lcErr > 0 && lcOk === 0 ? t('lc_fail') : ''; }
+  function makeLcSource() {
+    if (lcMode === 'off') return null;
+    const d = LC_DEFS[lcMode], yr = d.years ? lcYear(lcMode) : null;
+    const src = lcMode === 'esri'
+      ? new ol.source.TileImage({ tileGrid: esriGrid, tileUrlFunction: (tc) => esriUrl(tc, yr), attributions: d.attr })
+      : new ol.source.XYZ({ tileUrlFunction: (tc) => d.url(tc[0], tc[1], tc[2], yr), maxZoom: d.maxNative || 19, attributions: d.attr });
+    src.on('tileloaderror', () => { lcErr++; showLcState(); });
+    src.on('tileloadend', () => { lcOk++; showLcState(); });
+    return src;
+  }
+  function showLcState() {
+    if (lcMode === 'off') { $('lcState').textContent = ''; return; }
+    let z = 15; try { z = map.getView().getZoom(); } catch (e) { /* map not ready */ }
+    $('lcState').textContent = z < LC_DEFS[lcMode].minZoom ? t('lc_zoom_in') : (lcErr > 0 && lcOk === 0 ? t('lc_fail') : '');
+  }
   function renderLcLegend() {
-    $('lcLegend').innerHTML = LC_CLASSES.map(([v, c, ru, zh]) => `<div><i style="background:${c}"></i><span>${v} ${lang === 'zh' ? zh : ru}</span></div>`).join('');
+    if (lcMode === 'off') return;
+    const d = LC_DEFS[lcMode];
+    $('lcTitle').textContent = d.name;
+    const ys = $('lcYear');
+    if (d.years) {
+      const cur = lcYear(lcMode); let o = '';
+      for (let y = d.years[1]; y >= d.years[0]; y--) o += `<option value="${y}"${y === cur ? ' selected' : ''}>${y}</option>`;
+      ys.innerHTML = o; ys.classList.remove('hidden');
+    } else ys.classList.add('hidden');
+    $('lcLegend').innerHTML = d.legend.map(([v, c, ru, zh]) => `<div><i style="background:${c}"></i><span>${v} ${lang === 'zh' ? zh : ru}</span></div>`).join('');
     $('lcLegend').classList.toggle('collapsed', localStorage.getItem('fp_lc_leg') === '0');
     $('lcLegendToggle').textContent = localStorage.getItem('fp_lc_leg') === '0' ? '▸' : '▾';
   }
   function applyLc() {
-    lcLayer.setVisible(lcOn); $('lcToggle').classList.toggle('active', lcOn);
-    $('lcPanel').classList.toggle('hidden', !lcOn); $('lcOpacity').value = lcOpacity; renderLcLegend(); showLcState();
+    lcErr = 0; lcOk = 0;
+    lcLayer.setSource(makeLcSource());
+    lcLayer.setMinZoom(lcMode === 'off' ? 0 : LC_DEFS[lcMode].minZoom);
+    lcLayer.setVisible(lcMode !== 'off');
+    $('lcToggle').classList.toggle('active', lcMode !== 'off');
+    document.querySelectorAll('#lcMenu button').forEach((b) => b.classList.toggle('active', b.dataset.lc === lcMode));
+    $('lcPanel').classList.toggle('hidden', lcMode === 'off'); $('lcOpacity').value = lcOpacity; renderLcLegend(); showLcState();
   }
   const BASEMAPS = ['osm', 'sat', 'tdt_vec', 'tdt_img'];
   let basemap = localStorage.getItem('fp_basemap') || 'osm';
@@ -386,10 +434,15 @@
     view: new ol.View({ center: ol.proj.fromLonLat([124.5, 52.0]), zoom: 8 }),
     controls: ol.control.defaults.defaults({ rotate: false, zoom: false }).extend([new ol.control.ScaleLine({ units: 'metric', minWidth: 70 })])
   });
-  $('baseToggle').addEventListener('click', () => $('baseMenu').classList.toggle('hidden'));
-  $('lcToggle').addEventListener('click', () => { lcOn = !lcOn; localStorage.setItem('fp_lc', lcOn ? '1' : '0'); lcErr = 0; lcOk = 0; applyLc(); });
+  $('baseToggle').addEventListener('click', () => { $('lcMenu').classList.add('hidden'); $('baseMenu').classList.toggle('hidden'); });
+  $('lcToggle').addEventListener('click', () => { $('baseMenu').classList.add('hidden'); $('lcMenu').classList.toggle('hidden'); });
+  document.querySelectorAll('#lcMenu button').forEach((b) => b.addEventListener('click', () => {
+    $('lcMenu').classList.add('hidden'); lcMode = b.dataset.lc; localStorage.setItem('fp_lc', lcMode); applyLc();
+  }));
+  $('lcYear').addEventListener('change', () => { localStorage.setItem('fp_lc_year_' + lcMode, $('lcYear').value); applyLc(); });
   $('lcOpacity').addEventListener('input', () => { lcOpacity = Number($('lcOpacity').value); localStorage.setItem('fp_lc_op', String(lcOpacity)); lcLayer.setOpacity(lcOpacity / 100); });
   $('lcLegendToggle').addEventListener('click', () => { localStorage.setItem('fp_lc_leg', localStorage.getItem('fp_lc_leg') === '0' ? '1' : '0'); renderLcLegend(); });
+  map.getView().on('change:resolution', showLcState);
   applyLc();
   document.querySelectorAll('#baseMenu button').forEach((b) => b.addEventListener('click', () => { $('baseMenu').classList.add('hidden'); setBasemap(b.dataset.bm); }));
   $('zoomIn').addEventListener('click', () => map.getView().animate({ zoom: map.getView().getZoom() + 1, duration: 200 }));
