@@ -136,7 +136,7 @@
   let firstFixCentered = false;
 
   // ---------- habitat database (generated habitats.js) ----------
-  const APP_VERSION = '34';
+  const APP_VERSION = '35';
   const DB = { regions: [], categories: [], classes: [], habitats: [], generated: '' };
   function loadDbObject(obj) {
     if (!obj || !Array.isArray(obj.classes)) return false;
@@ -343,7 +343,7 @@
   ];
   const lcSource = new ol.source.XYZ({
     tileUrlFunction: (tc) => LC_URL(tc[0], tc[1], tc[2]), maxZoom: 18,
-    attributions: '© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium'
+    attributions: '© ESA WorldCover 2021 (Copernicus Sentinel data)'
   });
   let lcOn = localStorage.getItem('fp_lc') === '1';
   let lcOpacity = Number(localStorage.getItem('fp_lc_op') || 60);
