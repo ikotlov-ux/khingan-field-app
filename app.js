@@ -136,7 +136,7 @@
   let firstFixCentered = false;
 
   // ---------- habitat database (generated habitats.js) ----------
-  const APP_VERSION = '33';
+  const APP_VERSION = '34';
   const DB = { regions: [], categories: [], classes: [], habitats: [], generated: '' };
   function loadDbObject(obj) {
     if (!obj || !Array.isArray(obj.classes)) return false;
@@ -333,6 +333,34 @@
   const tdtCvaLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('cva_w') });   // labels for the vector map
   const tdtImgLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('img_w') });
   const tdtCiaLayer = new ol.layer.Tile({ visible: false, source: tdtSrc('cia_w') });   // labels for imagery
+  // ESA WorldCover 2021 (10 m) overlay from the official Terrascope WMTS (EPSG:3857 tile matrix set, rendered with the official palette)
+  const LC_URL = (z, x, y) => `https://services.terrascope.be/wmts/v2?layer=WORLDCOVER_2021_MAP&style=&tilematrixset=EPSG:3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=EPSG:3857:${z}&TileCol=${x}&TileRow=${y}`;
+  const LC_CLASSES = [
+    [10, '#006400', 'Древесный покров', '林地'], [20, '#ffbb22', 'Кустарники', '灌丛'], [30, '#ffff4c', 'Травянистая растительность', '草地'],
+    [40, '#f096ff', 'Пашни', '耕地'], [50, '#fa0000', 'Застройка', '建设用地'], [60, '#b4b4b4', 'Голые / редкая растительность', '裸地/稀疏植被'],
+    [70, '#f0f0f0', 'Снег и лёд', '冰雪'], [80, '#0064c8', 'Постоянные водоёмы', '永久水体'], [90, '#0096a0', 'Травяные водно-болотные', '草本湿地'],
+    [95, '#00cf75', 'Мангры', '红树林'], [100, '#fae6a0', 'Мхи и лишайники', '苔藓与地衣']
+  ];
+  const lcSource = new ol.source.XYZ({
+    tileUrlFunction: (tc) => LC_URL(tc[0], tc[1], tc[2]), maxZoom: 18,
+    attributions: '© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium'
+  });
+  let lcOn = localStorage.getItem('fp_lc') === '1';
+  let lcOpacity = Number(localStorage.getItem('fp_lc_op') || 60);
+  const lcLayer = new ol.layer.Tile({ visible: lcOn, opacity: lcOpacity / 100, source: lcSource });
+  let lcErr = 0, lcOk = 0;
+  lcSource.on('tileloaderror', () => { lcErr++; showLcState(); });
+  lcSource.on('tileloadend', () => { lcOk++; showLcState(); });
+  function showLcState() { $('lcState').textContent = lcOn && lcErr > 0 && lcOk === 0 ? t('lc_fail') : ''; }
+  function renderLcLegend() {
+    $('lcLegend').innerHTML = LC_CLASSES.map(([v, c, ru, zh]) => `<div><i style="background:${c}"></i><span>${v} ${lang === 'zh' ? zh : ru}</span></div>`).join('');
+    $('lcLegend').classList.toggle('collapsed', localStorage.getItem('fp_lc_leg') === '0');
+    $('lcLegendToggle').textContent = localStorage.getItem('fp_lc_leg') === '0' ? '▸' : '▾';
+  }
+  function applyLc() {
+    lcLayer.setVisible(lcOn); $('lcToggle').classList.toggle('active', lcOn);
+    $('lcPanel').classList.toggle('hidden', !lcOn); $('lcOpacity').value = lcOpacity; renderLcLegend(); showLcState();
+  }
   const BASEMAPS = ['osm', 'sat', 'tdt_vec', 'tdt_img'];
   let basemap = localStorage.getItem('fp_basemap') || 'osm';
   if (!BASEMAPS.includes(basemap)) basemap = 'osm';
@@ -354,11 +382,15 @@
   }
   const map = new ol.Map({
     target: 'map',
-    layers: [osmLayer, satLayer, tdtVecLayer, tdtCvaLayer, tdtImgLayer, tdtCiaLayer, new ol.layer.Vector({ source: trackSource, style: trackStyle }), new ol.layer.Vector({ source: posSource, style: posStyle }), new ol.layer.Vector({ source: pointSource, style: pointStyle })],
+    layers: [osmLayer, satLayer, tdtVecLayer, tdtCvaLayer, tdtImgLayer, tdtCiaLayer, lcLayer, new ol.layer.Vector({ source: trackSource, style: trackStyle }), new ol.layer.Vector({ source: posSource, style: posStyle }), new ol.layer.Vector({ source: pointSource, style: pointStyle })],
     view: new ol.View({ center: ol.proj.fromLonLat([124.5, 52.0]), zoom: 8 }),
     controls: ol.control.defaults.defaults({ rotate: false, zoom: false }).extend([new ol.control.ScaleLine({ units: 'metric', minWidth: 70 })])
   });
   $('baseToggle').addEventListener('click', () => $('baseMenu').classList.toggle('hidden'));
+  $('lcToggle').addEventListener('click', () => { lcOn = !lcOn; localStorage.setItem('fp_lc', lcOn ? '1' : '0'); lcErr = 0; lcOk = 0; applyLc(); });
+  $('lcOpacity').addEventListener('input', () => { lcOpacity = Number($('lcOpacity').value); localStorage.setItem('fp_lc_op', String(lcOpacity)); lcLayer.setOpacity(lcOpacity / 100); });
+  $('lcLegendToggle').addEventListener('click', () => { localStorage.setItem('fp_lc_leg', localStorage.getItem('fp_lc_leg') === '0' ? '1' : '0'); renderLcLegend(); });
+  applyLc();
   document.querySelectorAll('#baseMenu button').forEach((b) => b.addEventListener('click', () => { $('baseMenu').classList.add('hidden'); setBasemap(b.dataset.bm); }));
   $('zoomIn').addEventListener('click', () => map.getView().animate({ zoom: map.getView().getZoom() + 1, duration: 200 }));
   $('zoomOut').addEventListener('click', () => map.getView().animate({ zoom: map.getView().getZoom() - 1, duration: 200 }));
@@ -745,7 +777,7 @@
 
   // ---------- UI: language ----------
   function refreshDynamicTexts() {
-    applyBasemap();
+    applyBasemap(); renderLcLegend(); showLcState();
     if (!lastFix) { $('gpsState').textContent = t('gps_starting'); if (!observer || !$('status').textContent) setStatus(t('wait_gps')); }
     $('trackToggle').textContent = tracking ? t('track_stop') : t('track_start');
     fillClasses(); showVersion();
